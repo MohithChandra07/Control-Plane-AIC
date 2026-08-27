@@ -18,10 +18,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from detectors.hallucination.claim_verifier import ClaimVerifier
+from detectors.hallucination.corpus import load_corpus
 from gateway.providers.base import Provider
 from gateway.providers.openai_compatible import OpenAICompatibleProvider
 from gateway.routes.chat import router as chat_router
 from ledger.db import get_engine, get_sessionmaker, init_models
+from policy.engine import GovernanceEngine
 from policy.loader import load_all_policies
 
 load_dotenv()
@@ -32,13 +35,15 @@ def create_app(
     provider: Provider | None = None,
     engine: AsyncEngine | None = None,
     run_migrations: bool = False,
+    governance_engine: GovernanceEngine | None = None,
 ) -> FastAPI:
     """Build the FastAPI app.
 
-    `provider`/`engine` override the defaults (real upstream provider,
-    Postgres from DATABASE_URL). `run_migrations=True` creates tables on the
-    given engine at startup — production applies ledger/schema.sql out of
-    band instead, so this is for tests/local dev only.
+    `provider`/`engine`/`governance_engine` override the defaults (real
+    upstream provider, Postgres from DATABASE_URL, a ClaimVerifier built
+    from the real data/corpus/ docs). `run_migrations=True` creates tables
+    on the given engine at startup — production applies ledger/schema.sql
+    out of band instead, so this is for tests/local dev only.
     """
 
     @asynccontextmanager
@@ -55,6 +60,10 @@ def create_app(
         app.state.provider = provider or OpenAICompatibleProvider(
             base_url=os.environ.get("UPSTREAM_BASE_URL", "https://api.openai.com/v1"),
             api_key=os.environ.get("UPSTREAM_API_KEY", ""),
+        )
+
+        app.state.governance_engine = governance_engine or GovernanceEngine(
+            ClaimVerifier(load_corpus())
         )
 
         yield

@@ -18,7 +18,10 @@ FAKE_UPSTREAM_RESPONSE = {
     "choices": [
         {
             "index": 0,
-            "message": {"role": "assistant", "content": "Refunds are available within 30 days."},
+            # No digits/PII -> Tier 0 skips governance, so this fixture stays
+            # a pure plumbing check. Governance behavior itself is covered in
+            # tests/integration/test_gateway_governance.py.
+            "message": {"role": "assistant", "content": "Thanks for reaching out! How can I help you today?"},
             "finish_reason": "stop",
         }
     ],
@@ -70,7 +73,7 @@ def test_clean_request_is_allowed_and_audited(tmp_path):
 
     assert response.status_code == 200
     body = response.json()
-    assert body["choices"][0]["message"]["content"] == "Refunds are available within 30 days."
+    assert body["choices"][0]["message"]["content"] == "Thanks for reaching out! How can I help you today?"
     assert body["controlplane"]["decision"] == "ALLOW"
     assert body["controlplane"]["tenant_id"] == "customer_support"
     assert provider.last_payload == {

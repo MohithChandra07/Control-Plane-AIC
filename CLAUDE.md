@@ -32,19 +32,21 @@ is actually met).
    and make sure it's observable (audit `error` field), not swallowed.
 7. Run `pytest` and `ruff check .` before considering a change done.
 
-## Repo layout (as of Phase 1)
+## Repo layout (as of Phase 2)
 
 ```
 gateway/    FastAPI app, OpenAI-compatible routes, provider abstraction
-policy/     Policy schema (Pydantic) + YAML loader
+policy/     Policy schema (Pydantic) + YAML loader + governance engine (engine.py)
+detectors/  Claim extraction, Tier 0 gate, PII detector, heuristic claim verifier
+data/       corpus/ — small fake enterprise docs the claim verifier grounds against
 ledger/     SQLAlchemy audit models, hash-chained writer, Postgres schema
 configs/    One YAML policy per tenant
 tests/      unit/ (no I/O) and integration/ (async DB + TestClient)
 ```
 
-Directories from the target structure (`detectors/`, `bench/`, `demo/`,
-`console/`, etc.) are created when the phase that needs them starts, not
-before — see `docs/roadmap.md`.
+Directories from the target structure (`bench/`, `demo/`, `console/`, etc.)
+are created when the phase that needs them starts, not before — see
+`docs/roadmap.md`.
 
 ## Running things
 
