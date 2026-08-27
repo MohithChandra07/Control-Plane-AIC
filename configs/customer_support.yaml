@@ -1,0 +1,46 @@
+# TENANT 1 — Customer Support Assistant
+# Customer-facing, high external risk, conservative. See docs/policies.md.
+
+tenant_id: customer_support
+display_name: "Customer Support Assistant"
+description: >
+  Customer-facing chatbot. Conservative posture: unverifiable claims are
+  hedged rather than stated as fact, PII is redacted by default, and the
+  system fails closed on detector failure.
+
+latency_budget_ms: 150
+
+allowed_remediations:
+  - ALLOW
+  - HEDGE
+  - REDACT
+  - REMOVE
+  - ADD_CITATION
+  - ESCALATE
+  - BLOCK
+
+unverifiable_handling: HEDGE
+
+risk_thresholds:
+  tier1_trigger: 0.3
+  tier2_trigger: 0.6
+  block_trigger: 0.85
+
+pii:
+  enabled: true
+  remediation: REDACT
+  hard_block_categories:
+    - credit_card
+    - government_id
+
+tool_calls:
+  enabled: false
+  consequential_sinks: []
+  tainted_argument_action: BLOCK
+  require_verified_provenance: true
+
+escalation:
+  enabled: true
+  max_escalation_rate: 0.15
+
+fail_mode: fail_closed
