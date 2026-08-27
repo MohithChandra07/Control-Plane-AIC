@@ -115,13 +115,19 @@ def _enforce_allowed(remediation: Remediation, policy: Policy) -> Remediation:
     return Remediation.ESCALATE if Remediation.ESCALATE in policy.allowed_remediations else remediation
 
 
-def _annotate_claim(claim: Claim, verifier: ClaimVerifier, policy: Policy) -> Claim:
+def _annotate_claim(claim: Claim, verifier: ClaimVerifier, policy: Policy, turn_id: int | None) -> Claim:
     verdict, score, provenance = verifier.verify(claim.text)
     claim.verdict = verdict
+    provenance.turn_id = turn_id
     claim.provenance = provenance
+    claim.turn_id = turn_id
     claim.risk.hallucination.evaluated = True
     claim.risk.hallucination.detected = verdict != Verdict.SUPPORTED
     claim.risk.hallucination.score = score
+    # A claim ControlPlane can't confirm (or actively contradicts) is
+    # tainted -- spec §8: this is what later lets a tool-call argument
+    # derived from it get caught by ledger/taint.py in Phase 3's gating.
+    claim.taint_status = "clean" if verdict == Verdict.SUPPORTED else "tainted"
 
     pii_matches = detect_pii(claim.text)
     claim.pii_categories = sorted({m.category for m in pii_matches})
@@ -185,6 +191,19 @@ def _reconstruct_text(original: str, claims: list[Claim], policy: Policy) -> str
     return "".join(parts).strip()
 
 
+def remediation_to_decision(remediation: Remediation) -> Decision:
+    """Maps a single remediation action (response-claim or tool-call) onto
+    the response-level ALLOW/MODIFY/ESCALATE/BLOCK taxonomy (spec §0)."""
+    return _DECISION_BUCKET.get(remediation, Decision.ALLOW)
+
+
+def decision_rank(decision: Decision) -> int:
+    """ALLOW < MODIFY < ESCALATE < BLOCK -- used to combine multiple
+    decisions (per-claim, per-tool-call) into one overall response
+    decision by taking the most severe."""
+    return _DECISION_RANK[decision]
+
+
 def _aggregate_decision(claims: list[Claim]) -> Decision:
     decision = Decision.ALLOW
     for claim in claims:
@@ -198,12 +217,14 @@ class GovernanceEngine:
     def __init__(self, claim_verifier: ClaimVerifier):
         self._verifier = claim_verifier
 
-    def evaluate(self, text: str, policy: Policy) -> GovernanceResult:
+    def evaluate(self, text: str, policy: Policy, turn_id: int | None = None) -> GovernanceResult:
         tier0_score = quick_risk_score(text)
         if tier0_score < policy.risk_thresholds.tier1_trigger:
             return GovernanceResult(decision=Decision.ALLOW, final_text=text, claims=[], tier=0)
 
-        claims = [_annotate_claim(c, self._verifier, policy) for c in extract_claims(text)]
+        claims = [
+            _annotate_claim(c, self._verifier, policy, turn_id) for c in extract_claims(text)
+        ]
 
         if any(c.remediation == Remediation.BLOCK for c in claims):
             return GovernanceResult(decision=Decision.BLOCK, final_text=BLOCK_MESSAGE, claims=claims, tier=1)

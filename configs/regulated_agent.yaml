@@ -48,4 +48,15 @@ escalation:
   enabled: true
   max_escalation_rate: 0.4
 
+cost_breaker:
+  enabled: true
+  window_seconds: 60
+  max_requests_per_window: 20
+  max_tokens_per_window: 50000
+
+model_routing:
+  # Always use the primary model -- strongest verification requirements,
+  # not a cost-optimization target.
+  enabled: false
+
 fail_mode: fail_closed

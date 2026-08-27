@@ -38,6 +38,10 @@ class AuditEvent(Base):
 
     # Claim-level fields (populated from Phase 2 onward).
     claim_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # The claim's text, not just its metadata -- Phase 3's taint lookup
+    # (ledger/taint.py) needs to match a later tool-call argument value
+    # back to the claim text it came from.
+    claim_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     verdict: Mapped[str | None] = mapped_column(String(32), nullable=True)
     risk_labels: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     provenance: Mapped[dict | None] = mapped_column(JSON, nullable=True)

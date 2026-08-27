@@ -32,14 +32,21 @@ is actually met).
    and make sure it's observable (audit `error` field), not swallowed.
 7. Run `pytest` and `ruff check .` before considering a change done.
 
-## Repo layout (as of Phase 2)
+## Repo layout (as of Phase 3)
 
 ```
-gateway/    FastAPI app, OpenAI-compatible routes, provider abstraction
-policy/     Policy schema (Pydantic) + YAML loader + governance engine (engine.py)
+gateway/    FastAPI app, OpenAI-compatible routes, provider abstraction,
+            middleware/ (cost circuit breaker)
+policy/     Policy schema (Pydantic) + YAML loader + governance engine
+            (engine.py) + tool sink catalog loader (tools.py) + tool-call
+            gating (tool_gate.py)
 detectors/  Claim extraction, Tier 0 gate, PII detector, heuristic claim verifier
-data/       corpus/ — small fake enterprise docs the claim verifier grounds against
-ledger/     SQLAlchemy audit models, hash-chained writer, Postgres schema
+data/       corpus/ — fake enterprise docs the claim verifier grounds against;
+            tools.yaml — shared tool sink catalog (not per-tenant, so it's
+            not under configs/ where the policy loader globs *.yaml)
+ledger/     SQLAlchemy audit models, hash-chained writer, Postgres schema,
+            taint.py — taint lookup queried against the audit ledger itself
+            (no second, unaudited datastore)
 configs/    One YAML policy per tenant
 tests/      unit/ (no I/O) and integration/ (async DB + TestClient)
 ```

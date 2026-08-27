@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
     turn_id         INTEGER,
 
     claim_id        VARCHAR(64),
+    claim_text      TEXT,
     verdict         VARCHAR(32),
     risk_labels     JSONB,
     provenance      JSONB,
@@ -33,3 +34,4 @@ CREATE TABLE IF NOT EXISTS audit_events (
 CREATE INDEX IF NOT EXISTS ix_audit_events_request_id ON audit_events (request_id);
 CREATE INDEX IF NOT EXISTS ix_audit_events_tenant_id ON audit_events (tenant_id);
 CREATE INDEX IF NOT EXISTS ix_audit_events_hash ON audit_events (hash);
+CREATE INDEX IF NOT EXISTS ix_audit_events_conversation_id ON audit_events (conversation_id);

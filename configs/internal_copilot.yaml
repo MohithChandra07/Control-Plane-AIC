@@ -43,4 +43,15 @@ escalation:
   enabled: true
   max_escalation_rate: 0.3
 
+cost_breaker:
+  enabled: true
+  window_seconds: 60
+  max_requests_per_window: 120
+  max_tokens_per_window: 200000
+
+model_routing:
+  enabled: true
+  cheap_model: gpt-4o-mini
+  escalation_model: gpt-4o
+
 fail_mode: fail_open

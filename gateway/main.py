@@ -20,12 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from detectors.hallucination.claim_verifier import ClaimVerifier
 from detectors.hallucination.corpus import load_corpus
+from gateway.middleware.cost_breaker import CostBreaker
 from gateway.providers.base import Provider
 from gateway.providers.openai_compatible import OpenAICompatibleProvider
 from gateway.routes.chat import router as chat_router
 from ledger.db import get_engine, get_sessionmaker, init_models
 from policy.engine import GovernanceEngine
 from policy.loader import load_all_policies
+from policy.tools import load_tool_specs
 
 load_dotenv()
 
@@ -36,20 +38,23 @@ def create_app(
     engine: AsyncEngine | None = None,
     run_migrations: bool = False,
     governance_engine: GovernanceEngine | None = None,
+    cost_breaker: CostBreaker | None = None,
 ) -> FastAPI:
     """Build the FastAPI app.
 
-    `provider`/`engine`/`governance_engine` override the defaults (real
-    upstream provider, Postgres from DATABASE_URL, a ClaimVerifier built
-    from the real data/corpus/ docs). `run_migrations=True` creates tables
-    on the given engine at startup — production applies ledger/schema.sql
-    out of band instead, so this is for tests/local dev only.
+    `provider`/`engine`/`governance_engine`/`cost_breaker` override the
+    defaults (real upstream provider, Postgres from DATABASE_URL, a
+    ClaimVerifier built from the real data/corpus/ docs, a fresh
+    per-process CostBreaker). `run_migrations=True` creates tables on the
+    given engine at startup — production applies ledger/schema.sql out of
+    band instead, so this is for tests/local dev only.
     """
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.policies = load_all_policies()
         app.state.default_tenant = os.environ.get("DEFAULT_TENANT", "customer_support")
+        app.state.tool_specs = load_tool_specs()
 
         app.state.engine = engine or get_engine()
         app.state.sessionmaker = get_sessionmaker(app.state.engine)
@@ -65,6 +70,7 @@ def create_app(
         app.state.governance_engine = governance_engine or GovernanceEngine(
             ClaimVerifier(load_corpus())
         )
+        app.state.cost_breaker = cost_breaker or CostBreaker()
 
         yield
 

@@ -82,6 +82,29 @@ class EscalationPolicy(BaseModel):
     max_escalation_rate: float = Field(0.2, ge=0.0, le=1.0)
 
 
+class CostBreakerPolicy(BaseModel):
+    """Circuit breaker against retry storms / token spikes (spec §17,
+    Scene 5). Trips per-tenant when either limit is exceeded within the
+    trailing window -- see gateway/middleware/cost_breaker.py."""
+
+    enabled: bool = True
+    window_seconds: int = Field(60, gt=0)
+    max_requests_per_window: int = Field(60, gt=0)
+    max_tokens_per_window: int = Field(100_000, gt=0)
+
+
+class ModelRoutingPolicy(BaseModel):
+    """Cheap-model-first routing, validated by the governance engine
+    (spec §11 cost/quality tradeoff, Scene 6). When enabled, the gateway
+    calls `cheap_model` first; if the governance engine's decision on that
+    response is ESCALATE or BLOCK, it retries the same request against
+    `escalation_model` and uses that response instead."""
+
+    enabled: bool = False
+    cheap_model: str = "gpt-4o-mini"
+    escalation_model: str = "gpt-4o"
+
+
 class Policy(BaseModel):
     """Full policy profile for one tenant, loaded from configs/<tenant>.yaml."""
 
@@ -100,6 +123,8 @@ class Policy(BaseModel):
     pii: PiiPolicy = Field(default_factory=PiiPolicy)
     tool_calls: ToolCallPolicy = Field(default_factory=ToolCallPolicy)
     escalation: EscalationPolicy = Field(default_factory=EscalationPolicy)
+    cost_breaker: CostBreakerPolicy = Field(default_factory=CostBreakerPolicy)
+    model_routing: ModelRoutingPolicy = Field(default_factory=ModelRoutingPolicy)
 
     fail_mode: FailMode = FailMode.CLOSED
 

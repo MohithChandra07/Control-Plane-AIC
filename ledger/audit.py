@@ -39,6 +39,7 @@ class AuditRecord:
     conversation_id: str | None = None
     turn_id: int | None = None
     claim_id: str | None = None
+    claim_text: str | None = None
     verdict: str | None = None
     risk_labels: dict[str, Any] | None = None
     provenance: dict[str, Any] | None = None
@@ -58,6 +59,7 @@ def _canonical_payload(record: AuditRecord, prev_hash: str) -> str:
         "conversation_id": record.conversation_id,
         "turn_id": record.turn_id,
         "claim_id": record.claim_id,
+        "claim_text": record.claim_text,
         "verdict": record.verdict,
         "risk_labels": record.risk_labels,
         "provenance": record.provenance,
@@ -95,6 +97,7 @@ class AuditLedger:
             conversation_id=record.conversation_id,
             turn_id=record.turn_id,
             claim_id=record.claim_id,
+            claim_text=record.claim_text,
             verdict=record.verdict,
             risk_labels=record.risk_labels,
             provenance=record.provenance,
@@ -129,6 +132,7 @@ def verify_chain(events: list[AuditEvent]) -> bool:
             conversation_id=event.conversation_id,
             turn_id=event.turn_id,
             claim_id=event.claim_id,
+            claim_text=event.claim_text,
             verdict=event.verdict,
             risk_labels=event.risk_labels,
             provenance=event.provenance,
