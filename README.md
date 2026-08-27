@@ -11,14 +11,14 @@ Application → ControlPlane Gateway → AI Model → ControlPlane Analysis → 
 
 For agents, ControlPlane also intercepts consequential tool calls so an
 unverified or tainted claim (e.g. a hallucinated refund amount) can never
-silently become a real-world action — this is now implemented end to end,
-see Scene 7 below.
+silently become a real-world action — this is implemented end to end,
+see Scene 7 in `docs/roadmap.md`.
 
-## Status: Phase 3 (Agent Safety)
+## Status: Phase 4 (Observability + Evaluation)
 
 This repository is being built incrementally, phase by phase (see
-`docs/roadmap.md`). **Phases 1–3 are done; later phases are not
-implemented yet.** Concretely, right now:
+`docs/roadmap.md`). **Phases 1–4 are done; Phase 5 is not implemented
+yet.** Concretely, right now:
 
 - A real client can send an OpenAI-style chat request through the
   ControlPlane gateway, have it forwarded to an upstream OpenAI-compatible
@@ -36,29 +36,39 @@ implemented yet.** Concretely, right now:
   **propagates across conversation turns**: if a later turn's tool call
   (e.g. `issue_refund(amount=48000)`) uses a value that traces back to an
   unverified/contradicted claim earlier in the same conversation, the
-  call is blocked before it ever reaches the application — even if the
-  text response itself looked fine.
+  call is blocked before it ever reaches the application.
 - A **cost circuit breaker** trips per tenant on request-count or
   token-volume spikes, short-circuiting before the upstream provider is
-  ever called (no cost incurred on a tripped request).
-- A **cheap-model-first** routing option calls a cheaper model, validates
-  its response with the same governance engine, and only retries against
-  a stronger model when the checker actually flags a problem.
-- Every request produces a hash-chained audit ledger entry in Postgres,
-  plus one entry per claim and one per gated tool call.
+  ever called. A **cheap-model-first** routing option calls a cheaper
+  model, validates its response with the same governance engine, and
+  only retries against a stronger model when the checker flags a problem.
+- Every request produces a hash-chained audit ledger entry, plus one
+  entry per claim and one per gated tool call.
 - Three tenant policies (`configs/*.yaml`) drive different outcomes for
-  the same input (e.g. how an UNVERIFIABLE claim is handled, or whether
-  tool calls are gated at all, differs by tenant).
+  the same input.
+- A **benchmark harness** (`bench/`) runs a 400-item labeled synthetic
+  dataset through the real gateway under three scrutiny configurations
+  and reports real, measured precision/recall/latency numbers — see
+  `docs/roadmap.md` for the actual results from the last run.
+- A **traffic replayer** (`demo/replayer/`) populates the audit ledger
+  with synthetic traffic (measured: 10,000 interactions in ~100s in this
+  environment) so the **console** — a small read-only API
+  (`console/backend/`) plus a React dashboard (`console/frontend/`) — has
+  real data to show: decision breakdown, latency, a recent-requests
+  table, and a per-request drill-down into claims and tool-call
+  decisions.
 
 **Known simplifications** (see `docs/roadmap.md` for the full list):
 claim verification is a deterministic heuristic, not a real NLI model; PII
 detection is regex-based, not Presidio; taint matching is numeric-value
 only; the cost breaker is in-memory/per-process, not Redis-backed;
 toxicity/policy/bias risk labels exist in the schema but have no detector
-behind them yet.
+behind them yet; no metric is computed for `policy_violation` (labeled in
+the dataset, no detector exists); human agreement / ECE aren't computed
+(no human-labeled data; ECE is Phase 5).
 
-**Not yet implemented:** Tier 2 deep verification, the React console, the
-traffic replayer, and evaluation/calibration — that's Phase 4/5.
+**Not yet implemented:** Tier 2 deep verification, calibration/ECE,
+risk-appetite control, human override — that's Phase 5.
 
 ## Quick start
 
@@ -98,15 +108,48 @@ sink catalog (which tool names map to which consequence category, e.g.
 pytest
 ```
 
-61 tests cover policy loading/validation, the hash-chained audit ledger
+93 tests cover policy loading/validation, the hash-chained audit ledger
 (including tamper detection), claim extraction, PII detection, the
 heuristic claim verifier, the governance engine's remediation logic,
 taint lookup across conversation turns, tool-call gating, the cost
-breaker, and the gateway round trip including Scenes 1–3 and 5–7 end to
-end — see `tests/unit/` and `tests/integration/`.
+breaker, the benchmark dataset generator and harness, the traffic
+replayer, the console backend API, and the gateway round trip including
+Scenes 1–3 and 5–7 end to end — see `tests/unit/` and `tests/integration/`.
 
-## Running the benchmark / demo
+## Running the benchmark
 
-Not implemented yet (Phase 4/5). No benchmark numbers exist in this
-repository — none will be added until they come from an actual script run,
-per the project's no-fabrication rule.
+```bash
+python -m bench.harness.run_benchmark
+```
+
+Runs the 400-item labeled synthetic dataset (`bench/dataset/generate.py`)
+through the real gateway under three scrutiny configurations
+(ALWAYS_SHALLOW / ALWAYS_DEEP / ADAPTIVE) and writes real, measured
+results to `bench/results/benchmark_results.json`. See `docs/roadmap.md`
+for the actual numbers from the last run in this repo, and why cost
+isn't reported as a dollar figure in this particular harness.
+
+## Populating the console with traffic
+
+```bash
+python -m demo.replayer.replay --count 10000
+```
+
+Posts synthetic interactions through the real gateway to a local SQLite
+file (`demo/replayer/traffic.db` by default; pass `--database-url` to
+target real Postgres instead), so the console has real data to show.
+
+## Running the console
+
+```bash
+# Terminal 1 — read-only API over the audit ledger
+DATABASE_URL="sqlite+aiosqlite:///$(pwd)/demo/replayer/traffic.db" \
+  uvicorn console.backend.main:app --port 8001
+
+# Terminal 2 — dashboard
+cd console/frontend && npm install && npm run dev
+```
+
+Open the printed `http://localhost:5173/` URL. The dashboard auto-refreshes
+every 5 seconds and reads only from the audit ledger — nothing on it is
+hard-coded demo data.

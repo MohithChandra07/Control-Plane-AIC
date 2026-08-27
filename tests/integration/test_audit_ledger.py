@@ -76,3 +76,25 @@ async def test_verify_chain_detects_tampering(sessionmaker):
 
     events[0].decision = "BLOCK"  # tamper with history in-place, not via record()
     assert verify_chain(events) is False
+
+
+async def test_kind_defaults_to_request_and_round_trips(sessionmaker):
+    async with sessionmaker() as session:
+        ledger = AuditLedger(session)
+        request_row = await ledger.record(
+            AuditRecord(request_id="req-1", tenant_id="t", policy_name="t", decision="ALLOW")
+        )
+        claim_row = await ledger.record(
+            AuditRecord(request_id="req-1", tenant_id="t", policy_name="t", decision="ALLOW", kind="claim")
+        )
+        tool_row = await ledger.record(
+            AuditRecord(request_id="req-1", tenant_id="t", policy_name="t", decision="ALLOW", kind="tool_call")
+        )
+
+    assert request_row.kind == "request"
+    assert claim_row.kind == "claim"
+    assert tool_row.kind == "tool_call"
+
+    async with sessionmaker() as session:
+        events = (await session.execute(select(AuditEvent).order_by(AuditEvent.id))).scalars().all()
+    assert verify_chain(events) is True

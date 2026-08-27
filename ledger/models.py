@@ -31,6 +31,14 @@ class AuditEvent(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         default=lambda: dt.datetime.now(dt.UTC)
     )
+    # Discriminates the three kinds of row one request can produce:
+    # "request" (one per call, always), "claim" (one per extracted
+    # claim), "tool_call" (one per gated tool_calls entry). Explicit
+    # rather than inferred from which JSON fields happen to be set --
+    # both a request row (model-routing info) and a tool_call row
+    # (tool_name/sink/tainted_args) populate `action`, so that alone
+    # can't tell them apart. console/backend/main.py relies on this.
+    kind: Mapped[str] = mapped_column(String(16), default="request", index=True)
 
     tenant_id: Mapped[str] = mapped_column(String(64), index=True)
     conversation_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

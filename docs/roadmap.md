@@ -126,10 +126,96 @@ proves the gate isn't just blocking `issue_refund` outright.
   based on request shape (that's closer to Phase 4/5 territory once
   there's real cost/latency data to tune it against).
 
-## Phase 4 — Observability + Evaluation (not started)
+## Phase 4 — Observability + Evaluation ✅ done
 
-React console, traffic replayer (~10k interactions), benchmark harness,
-latency/cost measurement, evaluation charts.
+- [x] Synthetic labeled dataset generator (`bench/dataset/generate.py`) —
+      400 deterministic interactions (seed=42) covering grounded vs
+      hallucinated, PII vs clean, and policy-violation vs clean (the last
+      one labeled for future use; see below). Ground truth is correct by
+      construction, not run through the detector under test to derive it
+      (that would make precision/recall trivially perfect)
+- [x] Benchmark harness (`bench/harness/run_benchmark.py`) — one command
+      (`python -m bench.harness.run_benchmark`) runs the dataset through
+      the real gateway under ALWAYS_SHALLOW / ALWAYS_DEEP / ADAPTIVE
+      scrutiny configs and reports real, measured metrics
+- [x] Traffic replayer (`demo/replayer/replay.py`) — one command
+      (`python -m demo.replayer.replay --count 10000`) posts synthetic
+      traffic through the real gateway to populate the audit ledger;
+      measured 10,000 interactions in 99.9s (~100 req/s) against a local
+      SQLite file in this environment
+- [x] Console backend (`console/backend/main.py`) — small, separate,
+      read-only FastAPI service over the same `audit_events` table
+      (`/api/summary`, `/api/events`, `/api/events/{request_id}`)
+- [x] Console frontend (`console/frontend/`) — Vite + React dashboard:
+      summary cards, a decision breakdown, a paginated recent-requests
+      table, tenant filter, and a per-request drill-down drawer showing
+      claims (verdict, risk labels, taint status, remediation) and gated
+      tool calls. Verified rendering against real replayed data via a
+      headless-browser screenshot in this session (not just "it builds")
+- [x] Explicit `kind` discriminator added to `audit_events`
+      (`ledger/models.py`) — "request" / "claim" / "tool_call" rows were
+      previously only distinguishable by which JSON fields happened to be
+      set, which broke once tool-call rows and model-routing rows both
+      started populating `action`; the console backend needed a reliable
+      way to tell them apart
+- [x] Tests: 93 passing total (dataset generator, bench metrics, harness
+      smoke tests, replayer smoke test, console backend integration tests)
+
+**Definition of done (spec §23):** dashboards are live (console reads
+real data, verified visually) and the benchmark runs from one command.
+Met.
+
+**Real measured results** (`bench/results/benchmark_results.json`, 400
+interactions, seed=42 — reproduce with `python -m bench.harness.run_benchmark`):
+
+| mode | Tier 1 rate | escalation rate | p50 latency | p95 latency | hallucination recall | PII recall |
+|---|---|---|---|---|---|---|
+| ALWAYS_SHALLOW | 0% | 0% | 6.7 ms | 8.6 ms | 0% | 0% |
+| ALWAYS_DEEP | 100% | 30.75% | 10.7 ms | 13.1 ms | 100% | 100% |
+| ADAPTIVE | 69.5% | 26.25% | 10.7 ms | 13.8 ms | 99.44% | 100% |
+
+Precision was 1.0 (zero false positives) for both detectors in every
+config that ran Tier 1 — this heuristic detector doesn't cry wolf on this
+dataset, though see Phase 2/3's documented limitations on how far the
+heuristic generalizes beyond it. ADAPTIVE's one missed hallucination
+(vs. ALWAYS_DEEP's zero) is explained, not just observed: it's a
+single-digit claim ("...within 2 days...") that scores just under
+`internal_copilot`'s deliberately higher `tier1_trigger` (0.5, that
+tenant's configured tolerance) — the adaptive threshold correctly
+reflects the policy it was configured with, not a detector bug. Latency
+figures are from this sandboxed environment's hardware, not a
+production benchmark environment; rerun `bench/harness/run_benchmark.py`
+to get numbers for your own hardware.
+
+**Known simplifications** (documented, not hidden):
+- No metric is computed for `policy_violation` — the dataset carries the
+  label (spec's required ground-truth coverage), but no policy-violation
+  detector exists yet. See `bench/metrics/metrics.py`.
+- "Human agreement" and Expected Calibration Error aren't computed here —
+  no human-labeled review data exists in this environment, and ECE is
+  Phase 5 scope.
+- All three benchmark configs disable the cost breaker and model routing
+  so the comparison isolates the Tier 0/1 scrutiny-depth tradeoff
+  specifically; the cheap-model-reroute cost story is Scene 6's job
+  (tested separately in Phase 3), not this harness's.
+- The traffic replayer also disables the cost breaker, for the same
+  reason it isn't the point of that tool — Scene 5's own test already
+  proves the breaker trips under realistic-paced traffic; running it
+  enabled here would just starve the dashboard of governance data by
+  filling it with 429s at replay speed.
+- The replayer defaults to a local SQLite file for a turnkey run; pass
+  `--database-url postgresql+asyncpg://...` to point it at a real
+  Postgres instance instead.
+- The console frontend has one known moderate `npm audit` advisory
+  (esbuild's dev-server-only CORS issue, fixed only by a breaking Vite
+  major-version bump) — not applied since it doesn't affect the
+  production build and this is local dev tooling for a prototype, not an
+  internet-facing service.
+
+## Phase 5 — Calibration + Demo Hardening (not started)
+
+ECE/calibration, risk-appetite control wired to real policy behavior,
+human override + recalibration loop, final demo scenarios, full docs.
 
 ## Phase 5 — Calibration + Demo Hardening (not started)
 

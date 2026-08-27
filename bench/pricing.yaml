@@ -1,0 +1,13 @@
+# Illustrative unit pricing for bench/harness cost estimates.
+#
+# These are ASSUMED rates for demonstrating the cost/latency/safety
+# tradeoff mechanism -- not measured from a real API bill (the benchmark
+# harness uses a scripted fake provider, no real upstream calls are made).
+# Update with your actual negotiated rates before treating any cost number
+# this produces as a real budgeting figure.
+
+price_per_1k_tokens:
+  gpt-4o-mini: 0.00015
+  gpt-4o: 0.0025
+  # Fallback used when a model name isn't listed above.
+  default: 0.001

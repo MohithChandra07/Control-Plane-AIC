@@ -36,6 +36,7 @@ class AuditRecord:
     tenant_id: str
     policy_name: str
     decision: str
+    kind: str = "request"
     conversation_id: str | None = None
     turn_id: int | None = None
     claim_id: str | None = None
@@ -55,6 +56,7 @@ def _canonical_payload(record: AuditRecord, prev_hash: str) -> str:
     payload = {
         "prev_hash": prev_hash,
         "request_id": record.request_id,
+        "kind": record.kind,
         "tenant_id": record.tenant_id,
         "conversation_id": record.conversation_id,
         "turn_id": record.turn_id,
@@ -93,6 +95,7 @@ class AuditLedger:
 
         event = AuditEvent(
             request_id=record.request_id,
+            kind=record.kind,
             tenant_id=record.tenant_id,
             conversation_id=record.conversation_id,
             turn_id=record.turn_id,
@@ -129,6 +132,7 @@ def verify_chain(events: list[AuditEvent]) -> bool:
             tenant_id=event.tenant_id,
             policy_name=event.policy_name,
             decision=event.decision,
+            kind=event.kind,
             conversation_id=event.conversation_id,
             turn_id=event.turn_id,
             claim_id=event.claim_id,

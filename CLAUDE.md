@@ -32,7 +32,7 @@ is actually met).
    and make sure it's observable (audit `error` field), not swallowed.
 7. Run `pytest` and `ruff check .` before considering a change done.
 
-## Repo layout (as of Phase 3)
+## Repo layout (as of Phase 4)
 
 ```
 gateway/    FastAPI app, OpenAI-compatible routes, provider abstraction,
@@ -48,12 +48,20 @@ ledger/     SQLAlchemy audit models, hash-chained writer, Postgres schema,
             taint.py — taint lookup queried against the audit ledger itself
             (no second, unaudited datastore)
 configs/    One YAML policy per tenant
+bench/      dataset/ (synthetic labeled data generator), metrics/ (P/R,
+            latency percentiles, cost calc), harness/ (one-command
+            ALWAYS_SHALLOW/ALWAYS_DEEP/ADAPTIVE benchmark), results/
+            (committed output from the last real run), pricing.yaml
+            (illustrative, labeled-as-assumed $/1K-token rates)
+demo/       replayer/ — one-command synthetic traffic generator that
+            populates the audit ledger for the console
+console/    backend/ — small, separate, read-only FastAPI service over
+            audit_events; frontend/ — Vite+React dashboard consuming it
 tests/      unit/ (no I/O) and integration/ (async DB + TestClient)
 ```
 
-Directories from the target structure (`bench/`, `demo/`, `console/`, etc.)
-are created when the phase that needs them starts, not before — see
-`docs/roadmap.md`.
+Directories from the target structure not yet created (nothing left
+outside what's listed above plus the Phase 5 items in `docs/roadmap.md`).
 
 ## Running things
 

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS audit_events (
     id              BIGSERIAL PRIMARY KEY,
     request_id      VARCHAR(64) NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    kind            VARCHAR(16) NOT NULL DEFAULT 'request',
 
     tenant_id       VARCHAR(64) NOT NULL,
     conversation_id VARCHAR(64),
@@ -35,3 +36,4 @@ CREATE INDEX IF NOT EXISTS ix_audit_events_request_id ON audit_events (request_i
 CREATE INDEX IF NOT EXISTS ix_audit_events_tenant_id ON audit_events (tenant_id);
 CREATE INDEX IF NOT EXISTS ix_audit_events_hash ON audit_events (hash);
 CREATE INDEX IF NOT EXISTS ix_audit_events_conversation_id ON audit_events (conversation_id);
+CREATE INDEX IF NOT EXISTS ix_audit_events_kind ON audit_events (kind);
