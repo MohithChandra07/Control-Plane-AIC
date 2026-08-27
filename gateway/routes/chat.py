@@ -15,6 +15,12 @@ Phase 3 scope, on top of Phase 2's response governance:
     that trace back to an unverified/contradicted claim earlier in this
     conversation. A tainted argument never silently reaches the
     application as a green-lit call.
+  - Input-side control (spec §4, §25, Scene 4): every role="tool"/
+    "function" message -- the standard convention for retrieved/
+    function-result content, i.e. untrusted input -- is scanned for
+    prompt-injection phrasing and neutralized *before* the upstream model
+    ever sees it. Never applied to "user"/"system" messages, which are
+    the actual conversation participants, not retrieved content.
 
 Only `choices[0].message` is governed; other choices (n>1) pass through
 ungoverned -- multi-choice is out of scope.
@@ -27,10 +33,14 @@ import time
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
+from sqlalchemy import select
 
+from detectors.injection import detect_injection, is_untrusted_role, neutralize
 from gateway.middleware.cost_breaker import estimate_tokens
 from gateway.providers.base import ProviderError
 from ledger.audit import AuditLedger, AuditRecord
+from ledger.models import TenantSetting
+from policy.appetite import apply_risk_appetite
 from policy.engine import (
     Decision,
     GovernanceEngine,
@@ -89,6 +99,46 @@ def _message_content(upstream_response: dict) -> str | None:
     return content if isinstance(content, str) else None
 
 
+def _neutralize_untrusted_messages(messages: list) -> tuple[list, list[dict]]:
+    """Scans role="tool"/"function" messages for injection attempts and
+    replaces only the matched span (spec §25: treat retrieved content as
+    untrusted, but a redacted phrase, not the whole document, per the
+    project's surgical-remediation philosophy). Returns the (possibly
+    modified) message list and a record of what was found, for audit."""
+    new_messages: list = []
+    detections: list[dict] = []
+    for i, m in enumerate(messages):
+        if not isinstance(m, dict) or not is_untrusted_role(m.get("role")):
+            new_messages.append(m)
+            continue
+        content = m.get("content")
+        if not isinstance(content, str):
+            new_messages.append(m)
+            continue
+        matches = detect_injection(content)
+        if not matches:
+            new_messages.append(m)
+            continue
+        new_messages.append({**m, "content": neutralize(content, matches)})
+        detections.append({"message_index": i, "role": m.get("role"), "matches": [mm.text for mm in matches]})
+    return new_messages, detections
+
+
+async def _effective_policy(sessionmaker, tenant_id: str, policy: Policy) -> Policy:
+    """Applies the tenant's console-set risk appetite (spec §20) on top of
+    their configured base policy, if one has been set. Queried fresh per
+    request (not cached) so a console change takes effect immediately --
+    correct over fast for this prototype's request volume."""
+    async with sessionmaker() as session:
+        result = await session.execute(
+            select(TenantSetting.risk_appetite).where(TenantSetting.tenant_id == tenant_id)
+        )
+        appetite = result.scalar_one_or_none()
+    if appetite is None:
+        return policy
+    return apply_risk_appetite(policy, appetite)
+
+
 async def _call_model(provider, payload: dict, model: str | None) -> tuple[dict | None, str | None]:
     call_payload = {**payload, "model": model} if model else payload
     try:
@@ -107,14 +157,16 @@ async def chat_completions(request: Request):
     tenant_id = _resolve_tenant(request, body)
 
     policies: dict[str, Policy] = request.app.state.policies
-    policy = policies.get(tenant_id)
-    if policy is None:
+    base_policy = policies.get(tenant_id)
+    if base_policy is None:
         raise HTTPException(status_code=400, detail=f"unknown tenant '{tenant_id}'")
 
     conversation_id = _extension_field(body, "conversation_id")
     turn_id = _turn_id(body)
     sessionmaker = request.app.state.sessionmaker
     start = time.perf_counter()
+
+    policy = await _effective_policy(sessionmaker, tenant_id, base_policy)
 
     # --- Cost circuit breaker (Scene 5): checked before any provider call. ---
     tokens = estimate_tokens(_prompt_text(body))
@@ -138,6 +190,14 @@ async def chat_completions(request: Request):
     upstream_payload = {k: v for k, v in body.items() if k != "controlplane"}
     provider = request.app.state.provider
     governance_engine: GovernanceEngine = request.app.state.governance_engine
+
+    # --- Input-side control (Scene 4): neutralize injection attempts in
+    # untrusted (tool/function) messages before the model ever sees them. ---
+    injection_detections: list[dict] = []
+    if isinstance(upstream_payload.get("messages"), list):
+        upstream_payload["messages"], injection_detections = _neutralize_untrusted_messages(
+            upstream_payload["messages"]
+        )
 
     # --- Cheap-model reroute, validated by the governance engine (Scene 6). ---
     requested_model = upstream_payload.get("model")
@@ -224,8 +284,19 @@ async def chat_completions(request: Request):
                 else:
                     message.pop("tool_calls", None)
 
+    if injection_detections and decision_rank(Decision.MODIFY) > decision_rank(decision_value):
+        decision_value = Decision.MODIFY
+
     latency_ms = (time.perf_counter() - start) * 1000
     decision = "ERROR" if error is not None else decision_value.value
+
+    request_action: dict = {}
+    if policy.model_routing.enabled:
+        request_action["model_used"] = model_used
+        request_action["rerouted"] = rerouted
+    if injection_detections:
+        request_action["injection_detected"] = True
+        request_action["injection_matches"] = injection_detections
 
     async with sessionmaker() as session:
         ledger = AuditLedger(session)
@@ -239,7 +310,7 @@ async def chat_completions(request: Request):
                 turn_id=turn_id,
                 latency_ms=latency_ms,
                 error=error,
-                action={"model_used": model_used, "rerouted": rerouted} if policy.model_routing.enabled else None,
+                action=request_action or None,
             )
         )
         if governance is not None:
@@ -296,12 +367,14 @@ async def chat_completions(request: Request):
         "turn_id": turn_id,
         "model_used": model_used,
         "rerouted": rerouted,
+        "injection_detections": injection_detections,
         "claims": [
             {
                 "claim_id": c.claim_id,
                 "text": c.text,
                 "verdict": c.verdict.value if c.verdict else None,
                 "risk_labels": c.risk.active_labels(),
+                "risk": c.risk.model_dump(),
                 "remediation": c.remediation.value if c.remediation else None,
                 "taint_status": c.taint_status,
             }

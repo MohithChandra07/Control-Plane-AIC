@@ -32,36 +32,53 @@ is actually met).
    and make sure it's observable (audit `error` field), not swallowed.
 7. Run `pytest` and `ruff check .` before considering a change done.
 
-## Repo layout (as of Phase 4)
+## Repo layout (as of Phase 5 — all phases done)
 
 ```
 gateway/    FastAPI app, OpenAI-compatible routes, provider abstraction,
-            middleware/ (cost circuit breaker)
+            middleware/ (cost circuit breaker); routes/chat.py resolves
+            live risk appetite (_effective_policy) and neutralizes
+            prompt-injection attempts in untrusted messages before any
+            provider call
 policy/     Policy schema (Pydantic) + YAML loader + governance engine
             (engine.py) + tool sink catalog loader (tools.py) + tool-call
-            gating (tool_gate.py)
-detectors/  Claim extraction, Tier 0 gate, PII detector, heuristic claim verifier
+            gating (tool_gate.py) + risk appetite scaling (appetite.py) +
+            recalibration suggestion logic (recalibration.py)
+detectors/  Claim extraction, Tier 0 gate, PII detector, heuristic claim
+            verifier, prompt-injection detector (injection.py — scans only
+            role="tool"/"function" messages)
 data/       corpus/ — fake enterprise docs the claim verifier grounds against;
             tools.yaml — shared tool sink catalog (not per-tenant, so it's
             not under configs/ where the policy loader globs *.yaml)
-ledger/     SQLAlchemy audit models, hash-chained writer, Postgres schema,
-            taint.py — taint lookup queried against the audit ledger itself
-            (no second, unaudited datastore)
+ledger/     SQLAlchemy audit models (incl. TenantSetting for risk appetite),
+            hash-chained writer, Postgres schema, taint.py — taint lookup
+            queried against the audit ledger itself (no second, unaudited
+            datastore); AuditEvent.kind discriminates request/claim/
+            tool_call/risk_appetite_change/human_review rows
 configs/    One YAML policy per tenant
 bench/      dataset/ (synthetic labeled data generator), metrics/ (P/R,
-            latency percentiles, cost calc), harness/ (one-command
-            ALWAYS_SHALLOW/ALWAYS_DEEP/ADAPTIVE benchmark), results/
-            (committed output from the last real run), pricing.yaml
-            (illustrative, labeled-as-assumed $/1K-token rates)
+            latency percentiles, cost calc, calibration.py — ECE/reliability
+            bins), harness/ (one-command ALWAYS_SHALLOW/ALWAYS_DEEP/ADAPTIVE
+            benchmark + run_appetite_sweep.py), results/ (committed output
+            from the last real run), pricing.yaml (illustrative,
+            labeled-as-assumed $/1K-token rates)
 demo/       replayer/ — one-command synthetic traffic generator that
             populates the audit ledger for the console
-console/    backend/ — small, separate, read-only FastAPI service over
-            audit_events; frontend/ — Vite+React dashboard consuming it
+console/    backend/ — small FastAPI service over audit_events, read plus
+            two narrowly-scoped admin writes (risk appetite, human review);
+            frontend/ — Vite+React dashboard, incl. RiskAppetiteControl and
+            HumanFeedbackPanel components
+docs/       project-brief.md, terminology.md, policies.md, assumptions.md,
+            architecture.md (Mermaid diagrams), demo-scenarios.md (all 9
+            scenes, reproducible by exact test name), evaluation.md (every
+            number transcribed from an actual script run), roadmap.md
 tests/      unit/ (no I/O) and integration/ (async DB + TestClient)
 ```
 
-Directories from the target structure not yet created (nothing left
-outside what's listed above plus the Phase 5 items in `docs/roadmap.md`).
+All phases (1–5) from `docs/roadmap.md` are done; see that file's Phase 5
+section and `docs/assumptions.md` for what's a documented simplification
+versus what's fully implemented (e.g. Tier 2 deep verification is still
+not built).
 
 ## Running things
 

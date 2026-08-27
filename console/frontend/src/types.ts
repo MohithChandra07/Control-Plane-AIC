@@ -37,8 +37,44 @@ export interface ToolCallRow {
   action: Record<string, unknown> | null;
 }
 
+export interface Review {
+  created_at: string;
+  reviewed_request_id: string;
+  reviewed_claim_id: string | null;
+  reviewed_decision: string | null;
+  reviewer: string;
+  agree: boolean;
+  notes: string | null;
+}
+
 export interface EventDetail {
   request: EventRow & { action: Record<string, unknown> | null };
   claims: Claim[];
   tool_calls: ToolCallRow[];
+  reviews: Review[];
+}
+
+export interface HumanAgreement {
+  tenant_id: string;
+  reviewed_count: number;
+  agreement_rate: number | null;
+}
+
+export interface RecalibrationSuggestion {
+  reviewed_count: number;
+  disagreement_rate: number;
+  suggested_appetite_delta: number;
+  message: string;
+}
+
+export interface Recalibration {
+  tenant_id: string;
+  suggestion: RecalibrationSuggestion | null;
+}
+
+export interface RiskAppetite {
+  tenant_id: string;
+  risk_appetite: number;
+  updated_at: string | null;
+  updated_by: string | null;
 }

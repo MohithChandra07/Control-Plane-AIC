@@ -24,6 +24,13 @@ Only hallucination and PII detection get precision/recall: those are the
 only two risk categories with a real detector behind them. The dataset
 also carries policy_violation ground truth (spec's required coverage) but
 no metric is computed for it -- see bench/metrics/metrics.py.
+
+Also reports Expected Calibration Error (spec §19) for the hallucination
+risk score: real (score, outcome) pairs collected from this same run,
+binned and compared via bench/metrics/calibration.py. Only meaningful
+because policy/engine.py's RiskFinding.score is a genuine risk magnitude
+(0 for a confirmed-SUPPORTED claim) rather than "confidence in whichever
+verdict came back" -- see that file for the bug this used to be.
 """
 
 from __future__ import annotations
@@ -40,6 +47,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from bench.dataset.generate import DatasetItem, generate_dataset
+from bench.metrics.calibration import expected_calibration_error
 from bench.metrics.metrics import confusion_counts, escalation_rate, percentile
 from gateway.main import create_app
 from gateway.providers.base import Provider
@@ -105,6 +113,8 @@ def _run_config(mode: str, items: list[DatasetItem], db_path: Path) -> dict:
     actual_hallu: list[bool] = []
     predicted_pii: list[bool] = []
     actual_pii: list[bool] = []
+    hallu_scores: list[float] = []
+    hallu_score_outcomes: list[bool] = []
     decisions: list[str] = []
     tier1_count = 0
 
@@ -137,12 +147,21 @@ def _run_config(mode: str, items: list[DatasetItem], db_path: Path) -> dict:
             if item.grounded is not None:
                 predicted_hallu.append(detected_hallucination)
                 actual_hallu.append(not item.grounded)
+                if claims:
+                    # One dataset item -> one primary claim by design; take
+                    # the strongest hallucination score among any claims
+                    # extracted (Tier 0 skips give an empty list, meaning
+                    # no risk score was ever produced -- excluded here,
+                    # same as ALWAYS_SHALLOW's 0% recall already shows).
+                    hallu_scores.append(max(c["risk"]["hallucination"]["score"] for c in claims))
+                    hallu_score_outcomes.append(not item.grounded)
 
             predicted_pii.append(detected_pii)
             actual_pii.append(item.has_pii)
 
     hallu_counts = confusion_counts(predicted_hallu, actual_hallu)
     pii_counts = confusion_counts(predicted_pii, actual_pii)
+    hallu_ece = expected_calibration_error(hallu_scores, hallu_score_outcomes)
 
     return {
         "mode": mode,
@@ -157,16 +176,24 @@ def _run_config(mode: str, items: list[DatasetItem], db_path: Path) -> dict:
         },
         "hallucination_detection": hallu_counts.as_dict(),
         "pii_detection": pii_counts.as_dict(),
+        "hallucination_calibration": {
+            "ece": hallu_ece,
+            "n_scored": len(hallu_scores),
+        },
     }
 
 
 def _print_summary(results: list[dict]) -> None:
-    header = f"{'mode':<15}{'tier1_rate':>12}{'escalate':>10}{'p50_ms':>9}{'p95_ms':>9}{'hallu_recall':>14}{'pii_recall':>12}"
+    header = (
+        f"{'mode':<15}{'tier1_rate':>12}{'escalate':>10}{'p50_ms':>9}{'p95_ms':>9}"
+        f"{'hallu_recall':>14}{'pii_recall':>12}{'hallu_ece':>11}"
+    )
     print(header)
     print("-" * len(header))
     for r in results:
         hallu_recall = r["hallucination_detection"]["recall"]
         pii_recall = r["pii_detection"]["recall"]
+        ece = r["hallucination_calibration"]["ece"]
         print(
             f"{r['mode']:<15}"
             f"{r['tier1_invocation_rate']:>12.2%}"
@@ -175,6 +202,7 @@ def _print_summary(results: list[dict]) -> None:
             f"{r['latency_ms']['p95']:>9.2f}"
             f"{(hallu_recall or 0):>14.2%}"
             f"{(pii_recall or 0):>12.2%}"
+            f"{(f'{ece:.3f}' if ece is not None else 'n/a'):>11}"
         )
 
 

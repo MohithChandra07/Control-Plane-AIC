@@ -37,3 +37,14 @@ CREATE INDEX IF NOT EXISTS ix_audit_events_tenant_id ON audit_events (tenant_id)
 CREATE INDEX IF NOT EXISTS ix_audit_events_hash ON audit_events (hash);
 CREATE INDEX IF NOT EXISTS ix_audit_events_conversation_id ON audit_events (conversation_id);
 CREATE INDEX IF NOT EXISTS ix_audit_events_kind ON audit_events (kind);
+
+-- Per-tenant console-controlled overrides (spec §20: risk appetite).
+-- Live configuration the gateway reads per request, not a historical
+-- record -- every change to it is still audited as an audit_events row
+-- (kind='risk_appetite_change') by whatever wrote it.
+CREATE TABLE IF NOT EXISTS tenant_settings (
+    tenant_id    VARCHAR(64) PRIMARY KEY,
+    risk_appetite DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by   VARCHAR(128)
+);

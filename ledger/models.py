@@ -66,3 +66,25 @@ class AuditEvent(Base):
 
     prev_hash: Mapped[str] = mapped_column(String(64))
     hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+
+
+class TenantSetting(Base):
+    """Per-tenant console-controlled overrides (spec §20: risk appetite).
+
+    Deliberately its own small mutable table, not an audit_events row --
+    it's live *configuration* the gateway reads on every request, not a
+    historical decision record. Every *change* to it is still audited
+    (console/backend/main.py records an audit_events row with
+    kind="risk_appetite_change" when this is written), so the audit
+    ledger still has a complete, tamper-evident history of who changed
+    what and when -- this table just holds the current value.
+    """
+
+    __tablename__ = "tenant_settings"
+
+    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    risk_appetite: Mapped[float] = mapped_column(Float, default=0.5)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        default=lambda: dt.datetime.now(dt.UTC), onupdate=lambda: dt.datetime.now(dt.UTC)
+    )
+    updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)

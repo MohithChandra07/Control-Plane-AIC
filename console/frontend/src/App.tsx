@@ -5,6 +5,8 @@ import { SummaryCards } from "./components/SummaryCards";
 import { DecisionBars } from "./components/DecisionBars";
 import { EventsTable } from "./components/EventsTable";
 import { EventDetailDrawer } from "./components/EventDetailDrawer";
+import { RiskAppetiteControl } from "./components/RiskAppetiteControl";
+import { HumanFeedbackPanel } from "./components/HumanFeedbackPanel";
 
 const PAGE_SIZE = 25;
 
@@ -16,6 +18,7 @@ export default function App() {
   const [offset, setOffset] = useState(0);
   const [detail, setDetail] = useState<EventDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [feedbackRefreshKey, setFeedbackRefreshKey] = useState(0);
 
   const refresh = useCallback(async () => {
     try {
@@ -53,6 +56,11 @@ export default function App() {
     }
   }
 
+  async function refreshOpenDetail() {
+    if (detail) await openDetail(detail.request.request_id);
+    setFeedbackRefreshKey((k) => k + 1);
+  }
+
   return (
     <>
       <header>
@@ -78,6 +86,9 @@ export default function App() {
 
       <SummaryCards summary={summary} />
 
+      {tenant && <RiskAppetiteControl tenant={tenant} />}
+      {tenant && <HumanFeedbackPanel tenant={tenant} refreshKey={feedbackRefreshKey} />}
+
       <div className="panel">
         <h2>Decisions</h2>
         <DecisionBars counts={summary?.decision_counts ?? {}} />
@@ -96,7 +107,7 @@ export default function App() {
         </div>
       </div>
 
-      <EventDetailDrawer detail={detail} onClose={() => setDetail(null)} />
+      <EventDetailDrawer detail={detail} onClose={() => setDetail(null)} onReviewSubmitted={refreshOpenDetail} />
     </>
   );
 }

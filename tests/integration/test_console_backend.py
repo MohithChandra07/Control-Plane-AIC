@@ -106,3 +106,64 @@ def test_event_detail_404_for_unknown_request_id(tmp_path):
     with _console_client(db_path) as client:
         response = client.get("/api/events/does-not-exist")
     assert response.status_code == 404
+
+
+def test_risk_appetite_defaults_to_half_when_unset(tmp_path):
+    db_path = tmp_path / "audit.db"
+    _seed_gateway_traffic(db_path)
+    with _console_client(db_path) as client:
+        response = client.get("/api/risk-appetite/customer_support")
+    assert response.json() == {
+        "tenant_id": "customer_support",
+        "risk_appetite": 0.5,
+        "updated_at": None,
+        "updated_by": None,
+    }
+
+
+def test_setting_risk_appetite_persists_and_is_audited(tmp_path):
+    db_path = tmp_path / "audit.db"
+    _seed_gateway_traffic(db_path)
+    with _console_client(db_path) as client:
+        put_response = client.put(
+            "/api/risk-appetite/customer_support",
+            json={"risk_appetite": 0.9, "updated_by": "alice"},
+        )
+        assert put_response.status_code == 200
+
+        get_response = client.get("/api/risk-appetite/customer_support")
+        body = get_response.json()
+        assert body["risk_appetite"] == 0.9
+        assert body["updated_by"] == "alice"
+        assert body["updated_at"] is not None
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from ledger.audit import verify_chain
+    from ledger.db import get_sessionmaker
+    from ledger.models import AuditEvent
+
+    async def _fetch():
+        engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}")
+        sessionmaker = get_sessionmaker(engine)
+        async with sessionmaker() as session:
+            rows = (await session.execute(select(AuditEvent).order_by(AuditEvent.id))).scalars().all()
+        await engine.dispose()
+        return rows
+
+    import asyncio
+
+    events = asyncio.run(_fetch())
+    change_rows = [e for e in events if e.kind == "risk_appetite_change"]
+    assert len(change_rows) == 1
+    assert change_rows[0].action == {"old_appetite": 0.5, "new_appetite": 0.9, "updated_by": "alice"}
+    assert verify_chain(events) is True
+
+
+def test_risk_appetite_rejects_out_of_range_value(tmp_path):
+    db_path = tmp_path / "audit.db"
+    _seed_gateway_traffic(db_path)
+    with _console_client(db_path) as client:
+        response = client.put("/api/risk-appetite/customer_support", json={"risk_appetite": 1.5})
+    assert response.status_code == 422

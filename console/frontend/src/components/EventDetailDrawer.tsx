@@ -1,11 +1,57 @@
-import type { EventDetail } from "../types";
+import { useState } from "react";
+import { api } from "../api";
+import type { EventDetail, Review } from "../types";
+
+function ReviewControls({
+  requestId,
+  claimId,
+  existing,
+  onSubmitted,
+}: {
+  requestId: string;
+  claimId: string | null;
+  existing: Review[];
+  onSubmitted: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const mine = existing.filter((r) => r.reviewed_claim_id === claimId);
+
+  async function submit(agree: boolean) {
+    setPending(true);
+    try {
+      await api.submitReview({ requestId, claimId, reviewer: "console-user", agree });
+      onSubmitted();
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
+      <span style={{ fontSize: 12, color: "var(--text-dim)" }}>Reviewer verdict:</span>
+      <button disabled={pending} onClick={() => submit(true)}>
+        Agree
+      </button>
+      <button disabled={pending} onClick={() => submit(false)}>
+        Disagree
+      </button>
+      {mine.length > 0 && (
+        <span style={{ fontSize: 12, color: "var(--text-dim)" }}>
+          reviewed {mine.length}× — {mine.filter((r) => r.agree).length} agree, {mine.filter((r) => !r.agree).length} disagree
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function EventDetailDrawer({
   detail,
   onClose,
+  onReviewSubmitted,
 }: {
   detail: EventDetail | null;
   onClose: () => void;
+  onReviewSubmitted: () => void;
 }) {
   if (!detail) return null;
 
@@ -39,6 +85,12 @@ export function EventDetailDrawer({
                     </span>
                   ))}
             </div>
+            <ReviewControls
+              requestId={detail.request.request_id}
+              claimId={c.claim_id}
+              existing={detail.reviews}
+              onSubmitted={onReviewSubmitted}
+            />
           </div>
         ))}
 
@@ -52,6 +104,16 @@ export function EventDetailDrawer({
             </pre>
           </div>
         ))}
+
+        <h4>Overall decision</h4>
+        <div className="claim-card">
+          <ReviewControls
+            requestId={detail.request.request_id}
+            claimId={null}
+            existing={detail.reviews}
+            onSubmitted={onReviewSubmitted}
+          />
+        </div>
 
         <button onClick={onClose} style={{ marginTop: 12 }}>
           Close

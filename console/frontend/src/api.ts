@@ -1,7 +1,19 @@
-import type { Summary, EventRow, EventDetail } from "./types";
+import type { Summary, EventRow, EventDetail, RiskAppetite, HumanAgreement, Recalibration } from "./types";
 
 async function getJSON<T>(path: string): Promise<T> {
   const res = await fetch(path);
+  if (!res.ok) {
+    throw new Error(`${path} -> HTTP ${res.status}`);
+  }
+  return (await res.json()) as T;
+}
+
+async function writeJSON<T>(method: "PUT" | "POST", path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) {
     throw new Error(`${path} -> HTTP ${res.status}`);
   }
@@ -24,4 +36,25 @@ export const api = {
   },
 
   eventDetail: (requestId: string) => getJSON<EventDetail>(`/api/events/${encodeURIComponent(requestId)}`),
+
+  riskAppetite: (tenant: string) => getJSON<RiskAppetite>(`/api/risk-appetite/${encodeURIComponent(tenant)}`),
+
+  setRiskAppetite: (tenant: string, riskAppetite: number, updatedBy?: string) =>
+    writeJSON<RiskAppetite>("PUT", `/api/risk-appetite/${encodeURIComponent(tenant)}`, {
+      risk_appetite: riskAppetite,
+      updated_by: updatedBy ?? null,
+    }),
+
+  submitReview: (opts: { requestId: string; claimId?: string | null; reviewer: string; agree: boolean; notes?: string }) =>
+    writeJSON<{ status: string }>("POST", "/api/reviews", {
+      request_id: opts.requestId,
+      claim_id: opts.claimId ?? null,
+      reviewer: opts.reviewer,
+      agree: opts.agree,
+      notes: opts.notes ?? null,
+    }),
+
+  humanAgreement: (tenant: string) => getJSON<HumanAgreement>(`/api/human-agreement/${encodeURIComponent(tenant)}`),
+
+  recalibration: (tenant: string) => getJSON<Recalibration>(`/api/recalibration/${encodeURIComponent(tenant)}`),
 };

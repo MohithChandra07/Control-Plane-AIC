@@ -123,7 +123,13 @@ def _annotate_claim(claim: Claim, verifier: ClaimVerifier, policy: Policy, turn_
     claim.turn_id = turn_id
     claim.risk.hallucination.evaluated = True
     claim.risk.hallucination.detected = verdict != Verdict.SUPPORTED
-    claim.risk.hallucination.score = score
+    # `score` from the verifier is confidence-in-the-verdict, not
+    # risk magnitude -- a strongly SUPPORTED claim has high verdict
+    # confidence but should carry *zero* hallucination risk, not a score
+    # that reads as "high risk" to anything consuming RiskVector (e.g.
+    # bench/metrics/calibration.py, which needs risk scores to actually
+    # mean risk to be calibratable against outcomes).
+    claim.risk.hallucination.score = 0.0 if verdict == Verdict.SUPPORTED else score
     # A claim ControlPlane can't confirm (or actively contradicts) is
     # tainted -- spec §8: this is what later lets a tool-call argument
     # derived from it get caught by ledger/taint.py in Phase 3's gating.

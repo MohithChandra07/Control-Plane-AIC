@@ -256,3 +256,16 @@ button:disabled {
   margin-bottom: 16px;
   font-size: 13px;
 }
+
+.suggestion-banner {
+  background: rgba(79, 156, 249, 0.12);
+  border: 1px solid var(--modify);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.suggestion-banner strong {
+  color: var(--modify);
+}

@@ -87,6 +87,18 @@ def test_surgical_remediation_keeps_good_claims_and_flags_bad_one(customer_suppo
     assert result.decision in (Decision.ESCALATE, Decision.MODIFY)
 
 
+def test_supported_claim_has_zero_hallucination_risk_score(customer_support):
+    """risk.hallucination.score must mean risk magnitude, not verdict
+    confidence -- a strongly SUPPORTED claim should score 0 risk, not a
+    high score that would read as "risky" to anything consuming it."""
+    engine = GovernanceEngine(FakeVerifier({SUPPORTED_1: _supported(SUPPORTED_1)}))
+    result = engine.evaluate(SUPPORTED_1, customer_support)
+    claim = result.claims[0]
+    assert claim.verdict == Verdict.SUPPORTED
+    assert claim.risk.hallucination.detected is False
+    assert claim.risk.hallucination.score == 0.0
+
+
 def test_unverifiable_pii_claim_gets_both_risk_labels_and_redaction(customer_support):
     engine = GovernanceEngine(FakeVerifier({}))
     text = "The customer's phone number is 9876543210 according to our records."
