@@ -1,0 +1,120 @@
+{
+  "seed": 42,
+  "count": 400,
+  "results": [
+    {
+      "mode": "ALWAYS_SHALLOW",
+      "interactions": 400,
+      "tier1_invocation_rate": 0.0,
+      "escalation_rate": 0.0,
+      "decision_counts": {
+        "ALLOW": 400
+      },
+      "latency_ms": {
+        "p50": 7.290047999958915,
+        "p95": 9.05477099968266,
+        "mean": 7.456448292459754
+      },
+      "hallucination_detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 140,
+        "fn": 180,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null
+      },
+      "pii_detection": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 320,
+        "fn": 80,
+        "precision": null,
+        "recall": 0.0,
+        "f1": null
+      },
+      "hallucination_calibration": {
+        "ece": null,
+        "n_scored": 0
+      }
+    },
+    {
+      "mode": "ALWAYS_DEEP",
+      "interactions": 400,
+      "tier1_invocation_rate": 1.0,
+      "escalation_rate": 0.3075,
+      "decision_counts": {
+        "MODIFY": 196,
+        "ESCALATE": 123,
+        "ALLOW": 64,
+        "BLOCK": 17
+      },
+      "latency_ms": {
+        "p50": 11.228635000406939,
+        "p95": 14.077818999794545,
+        "mean": 11.547667655008809
+      },
+      "hallucination_detection": {
+        "tp": 180,
+        "fp": 0,
+        "tn": 140,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "pii_detection": {
+        "tp": 80,
+        "fp": 0,
+        "tn": 320,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "hallucination_calibration": {
+        "ece": 0.1599999999999998,
+        "n_scored": 320
+      }
+    },
+    {
+      "mode": "ADAPTIVE",
+      "interactions": 400,
+      "tier1_invocation_rate": 0.695,
+      "escalation_rate": 0.2625,
+      "decision_counts": {
+        "MODIFY": 136,
+        "ESCALATE": 105,
+        "ALLOW": 142,
+        "BLOCK": 17
+      },
+      "latency_ms": {
+        "p50": 10.802853000313917,
+        "p95": 13.438635999591497,
+        "mean": 10.389183650017912
+      },
+      "hallucination_detection": {
+        "tp": 179,
+        "fp": 0,
+        "tn": 140,
+        "fn": 1,
+        "precision": 1.0,
+        "recall": 0.9944444444444445,
+        "f1": 0.9972144846796658
+      },
+      "pii_detection": {
+        "tp": 80,
+        "fp": 0,
+        "tn": 320,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "hallucination_calibration": {
+        "ece": 0.18381294964028752,
+        "n_scored": 278
+      }
+    }
+  ]
+}

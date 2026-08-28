@@ -1,0 +1,20 @@
+# Tool sink catalog (spec §9): classifies known agent tools by the kind of
+# real-world consequence they have, and which of their arguments should be
+# checked for taint before the call is allowed through.
+#
+# Shared across tenants -- a tool's nature doesn't change per tenant. What
+# differs per tenant is whether a given sink is "consequential" for them at
+# all, and what happens on a tainted argument -- both in
+# configs/<tenant>.yaml under tool_calls.
+
+issue_refund:
+  sink: money_movement
+  tainted_args: [amount]
+
+update_customer_record:
+  sink: database_write
+  tainted_args: [value]
+
+send_customer_email:
+  sink: external_communication
+  tainted_args: [body]

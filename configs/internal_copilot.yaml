@@ -1,0 +1,57 @@
+# TENANT 2 — Internal Knowledge Copilot
+# Internal-only, more tolerant of unverifiable information. See docs/policies.md.
+
+tenant_id: internal_copilot
+display_name: "Internal Knowledge Copilot"
+description: >
+  Internal-facing assistant for employees. More tolerant of unverifiable
+  claims (hedged, rarely blocked) since the audience can independently
+  verify against internal systems. Still redacts PII.
+
+latency_budget_ms: 600
+
+allowed_remediations:
+  - ALLOW
+  - HEDGE
+  - REDACT
+  - REMOVE
+  - ADD_CITATION
+  - ESCALATE
+  - BLOCK
+
+unverifiable_handling: ALLOW
+
+risk_thresholds:
+  tier1_trigger: 0.5
+  tier2_trigger: 0.8
+  block_trigger: 0.95
+
+pii:
+  enabled: true
+  remediation: REDACT
+  hard_block_categories:
+    - credit_card
+    - government_id
+
+tool_calls:
+  enabled: false
+  consequential_sinks: []
+  tainted_argument_action: ESCALATE
+  require_verified_provenance: false
+
+escalation:
+  enabled: true
+  max_escalation_rate: 0.3
+
+cost_breaker:
+  enabled: true
+  window_seconds: 60
+  max_requests_per_window: 120
+  max_tokens_per_window: 200000
+
+model_routing:
+  enabled: true
+  cheap_model: gpt-4o-mini
+  escalation_model: gpt-4o
+
+fail_mode: fail_open

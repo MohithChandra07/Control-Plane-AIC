@@ -1,0 +1,62 @@
+# TENANT 3 — Regulated Decision-Support Agent
+# Strict, consequential, has tools/actions, strongest verification. See docs/policies.md.
+
+tenant_id: regulated_agent
+display_name: "Regulated Decision-Support Agent"
+description: >
+  Agent with consequential tool access (e.g. issuing refunds). Strongest
+  verification requirements: unverifiable claims used as tool-call
+  arguments are blocked, not just hedged, and any tainted argument to a
+  consequential sink is blocked. Fails closed everywhere.
+
+latency_budget_ms: 2000
+
+allowed_remediations:
+  - ALLOW
+  - HEDGE
+  - REDACT
+  - REMOVE
+  - ADD_CITATION
+  - ESCALATE
+  - BLOCK
+
+unverifiable_handling: ESCALATE
+
+risk_thresholds:
+  tier1_trigger: 0.2
+  tier2_trigger: 0.4
+  block_trigger: 0.7
+
+pii:
+  enabled: true
+  remediation: REDACT
+  hard_block_categories:
+    - credit_card
+    - government_id
+    - bank_account
+
+tool_calls:
+  enabled: true
+  consequential_sinks:
+    - money_movement
+    - database_write
+    - external_communication
+  tainted_argument_action: BLOCK
+  require_verified_provenance: true
+
+escalation:
+  enabled: true
+  max_escalation_rate: 0.4
+
+cost_breaker:
+  enabled: true
+  window_seconds: 60
+  max_requests_per_window: 20
+  max_tokens_per_window: 50000
+
+model_routing:
+  # Always use the primary model -- strongest verification requirements,
+  # not a cost-optimization target.
+  enabled: false
+
+fail_mode: fail_closed

@@ -1,0 +1,96 @@
+{
+  "seed": 42,
+  "count": 400,
+  "results": [
+    {
+      "appetite": 0.1,
+      "tier1_invocation_rate": 0.2,
+      "escalation_rate": 0.0225,
+      "latency_ms": {
+        "p50": 8.386194999729923,
+        "p95": 14.689571000417345
+      },
+      "hallucination_detection": {
+        "tp": 40,
+        "fp": 0,
+        "tn": 140,
+        "fn": 140,
+        "precision": 1.0,
+        "recall": 0.2222222222222222,
+        "f1": 0.3636363636363636
+      }
+    },
+    {
+      "appetite": 0.3,
+      "tier1_invocation_rate": 0.3025,
+      "escalation_rate": 0.07,
+      "latency_ms": {
+        "p50": 8.947616000114067,
+        "p95": 15.422656999362516
+      },
+      "hallucination_detection": {
+        "tp": 81,
+        "fp": 0,
+        "tn": 140,
+        "fn": 99,
+        "precision": 1.0,
+        "recall": 0.45,
+        "f1": 0.6206896551724138
+      }
+    },
+    {
+      "appetite": 0.5,
+      "tier1_invocation_rate": 0.695,
+      "escalation_rate": 0.2625,
+      "latency_ms": {
+        "p50": 12.761243999193539,
+        "p95": 16.342238999641268
+      },
+      "hallucination_detection": {
+        "tp": 179,
+        "fp": 0,
+        "tn": 140,
+        "fn": 1,
+        "precision": 1.0,
+        "recall": 0.9944444444444445,
+        "f1": 0.9972144846796658
+      }
+    },
+    {
+      "appetite": 0.7,
+      "tier1_invocation_rate": 0.6975,
+      "escalation_rate": 0.265,
+      "latency_ms": {
+        "p50": 12.778160000380012,
+        "p95": 15.691028000219376
+      },
+      "hallucination_detection": {
+        "tp": 180,
+        "fp": 0,
+        "tn": 140,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    },
+    {
+      "appetite": 0.9,
+      "tier1_invocation_rate": 0.6975,
+      "escalation_rate": 0.265,
+      "latency_ms": {
+        "p50": 12.627254000108223,
+        "p95": 15.83278300040547
+      },
+      "hallucination_detection": {
+        "tp": 180,
+        "fp": 0,
+        "tn": 140,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    }
+  ]
+}
