@@ -7,8 +7,8 @@
       "tier1_invocation_rate": 0.2,
       "escalation_rate": 0.0225,
       "latency_ms": {
-        "p50": 8.386194999729923,
-        "p95": 14.689571000417345
+        "p50": 14.484900049865246,
+        "p95": 26.02889994159341
       },
       "hallucination_detection": {
         "tp": 40,
@@ -25,8 +25,8 @@
       "tier1_invocation_rate": 0.3025,
       "escalation_rate": 0.07,
       "latency_ms": {
-        "p50": 8.947616000114067,
-        "p95": 15.422656999362516
+        "p50": 13.663799967616796,
+        "p95": 24.974699830636382
       },
       "hallucination_detection": {
         "tp": 81,
@@ -43,8 +43,8 @@
       "tier1_invocation_rate": 0.695,
       "escalation_rate": 0.2625,
       "latency_ms": {
-        "p50": 12.761243999193539,
-        "p95": 16.342238999641268
+        "p50": 22.943099960684776,
+        "p95": 26.164500042796135
       },
       "hallucination_detection": {
         "tp": 179,
@@ -61,8 +61,8 @@
       "tier1_invocation_rate": 0.6975,
       "escalation_rate": 0.265,
       "latency_ms": {
-        "p50": 12.778160000380012,
-        "p95": 15.691028000219376
+        "p50": 22.589500062167645,
+        "p95": 25.33659990876913
       },
       "hallucination_detection": {
         "tp": 180,
@@ -79,8 +79,8 @@
       "tier1_invocation_rate": 0.6975,
       "escalation_rate": 0.265,
       "latency_ms": {
-        "p50": 12.627254000108223,
-        "p95": 15.83278300040547
+        "p50": 22.936000023037195,
+        "p95": 25.918400147929788
       },
       "hallucination_detection": {
         "tp": 180,
