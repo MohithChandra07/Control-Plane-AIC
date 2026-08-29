@@ -33,8 +33,12 @@ from detectors.base import Claim, ProvenanceSource, Verdict
 from detectors.claims import extract_claims
 from detectors.hallucination.claim_verifier import ClaimVerifier
 from detectors.pii.regex_pii import detect_pii, redact
+from detectors.responsibility import BiasDetector, ToxicityDetector
 from detectors.tier0 import quick_risk_score
 from policy.models import FailMode, Policy, Remediation, UnverifiableHandling
+
+_TOXICITY_DETECTOR = ToxicityDetector()
+_BIAS_DETECTOR = BiasDetector()
 
 BLOCK_MESSAGE = (
     "I'm not able to share that information right now. "
@@ -143,9 +147,17 @@ def _annotate_claim(claim: Claim, verifier: ClaimVerifier, policy: Policy, turn_
         hard_block = set(claim.pii_categories) & set(policy.pii.hard_block_categories)
         claim.risk.pii.score = 1.0 if hard_block else 0.6
 
+    tox_finding, _ = _TOXICITY_DETECTOR.scan(claim.text)
+    claim.risk.toxicity = tox_finding
+    tox_rem = Remediation.REMOVE if (tox_finding.detected and tox_finding.score >= 0.8) else None
+
+    bias_finding, _ = _BIAS_DETECTOR.scan(claim.text)
+    claim.risk.bias = bias_finding
+    bias_rem = Remediation.ESCALATE if (bias_finding.detected and bias_finding.score >= 0.8) else None
+
     hallu_rem = _hallucination_remediation(claim, policy)
     pii_rem = _pii_remediation(claim, policy)
-    candidates = [r for r in (hallu_rem, pii_rem) if r is not None]
+    candidates = [r for r in (hallu_rem, pii_rem, tox_rem, bias_rem) if r is not None]
     remediation = max(candidates, key=lambda r: _REMEDIATION_RANK[r]) if candidates else Remediation.ALLOW
     claim.remediation = _enforce_allowed(remediation, policy)
 
