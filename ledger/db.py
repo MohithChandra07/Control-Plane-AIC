@@ -8,6 +8,10 @@ Both are exercised through the same ledger.models.Base metadata.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -18,11 +22,20 @@ from sqlalchemy.ext.asyncio import (
 
 from ledger.models import Base
 
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://controlplane:controlplane@localhost:5432/controlplane"
+_ROOT = Path(__file__).resolve().parent.parent
+_DEFAULT_SQLITE_PATH = _ROOT / "demo" / "replayer" / "traffic.db"
+DEFAULT_DATABASE_URL = f"sqlite+aiosqlite:///{_DEFAULT_SQLITE_PATH}"
 
 
 def get_database_url() -> str:
-    return os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return DEFAULT_DATABASE_URL
+    if url.startswith("sqlite+aiosqlite:///") and not url.startswith("sqlite+aiosqlite:////"):
+        rel_path = url[len("sqlite+aiosqlite:///") :]
+        abs_path = (_ROOT / rel_path).resolve()
+        return f"sqlite+aiosqlite:///{abs_path}"
+    return url
 
 
 def get_engine(database_url: str | None = None) -> AsyncEngine:
