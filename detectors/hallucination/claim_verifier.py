@@ -51,23 +51,34 @@ def _numbers(text: str) -> set[str]:
     return set(_NUMBER.findall(text))
 
 
+def _word_ngrams(text: str, n: int = 2) -> set[str]:
+    words = [w.lower() for w in re.findall(r"[a-zA-Z0-9]+", text) if w.lower() not in _STOPWORDS]
+    if len(words) < n:
+        return set(words)
+    return {" ".join(words[i : i + n]) for i in range(len(words) - n + 1)}
+
+
 class ClaimVerifier:
     def __init__(self, corpus: list[Passage]):
         self._corpus = corpus
-        self._passage_keywords = [(p, _keywords(p.text)) for p in corpus]
+        self._passage_data = [(p, _keywords(p.text), _word_ngrams(p.text, 2)) for p in corpus]
 
     def verify(self, claim_text: str) -> tuple[Verdict, float, Provenance]:
         claim_words = _keywords(claim_text)
+        claim_bigrams = _word_ngrams(claim_text, 2)
 
         best_passage: Passage | None = None
         best_overlap = 0.0
         if claim_words:
-            for passage, words in self._passage_keywords:
+            for passage, words, bigrams in self._passage_data:
                 if not words:
                     continue
-                overlap = len(claim_words & words) / len(claim_words)
-                if overlap > best_overlap:
-                    best_overlap = overlap
+                word_overlap = len(claim_words & words) / len(claim_words)
+                bigram_overlap = (len(claim_bigrams & bigrams) / len(claim_bigrams)) if claim_bigrams else word_overlap
+                # Combined hybrid grounding score
+                combined_score = 0.8 * word_overlap + 0.2 * bigram_overlap
+                if combined_score > best_overlap:
+                    best_overlap = combined_score
                     best_passage = passage
 
         if best_passage is None or best_overlap < _RELEVANCE_FLOOR:
