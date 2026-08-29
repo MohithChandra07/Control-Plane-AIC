@@ -141,3 +141,50 @@ def test_escalated_claim_is_removed_under_fail_closed_tenant(customer_support):
     )
     result = engine.evaluate(CONTRADICTED_1, customer_support)
     assert result.final_text == "" or "2 hours" not in result.final_text
+def test_multilabel_risk_vector_exposes_active_labels(customer_support):
+    engine = GovernanceEngine(FakeVerifier({}))
+    text = "The customer's phone number is 9876543210 according to our records."
+
+    result = engine.evaluate(text, customer_support)
+    claim = result.claims[0]
+
+    assert claim.risk.hallucination.detected is True
+    assert claim.risk.pii.detected is True
+
+    labels = claim.risk.active_labels()
+
+    assert "hallucination" in labels
+    assert "pii" in labels
+    assert "policy" not in labels
+    assert "toxicity" not in labels
+    assert "bias" not in labels
+def test_multilabel_risk_vector_exposes_active_labels(customer_support):
+    engine = GovernanceEngine(FakeVerifier({}))
+    text = "The customer's phone number is 9876543210 according to our records."
+
+    result = engine.evaluate(text, customer_support)
+    claim = result.claims[0]
+
+    assert claim.risk.hallucination.detected is True
+    assert claim.risk.pii.detected is True
+
+    labels = claim.risk.active_labels()
+
+    assert "hallucination" in labels
+    assert "pii" in labels
+    assert "policy" not in labels
+    assert "toxicity" not in labels
+    assert "bias" not in labels
+def test_unverifiable_claim_follows_tenant_policy(customer_support):
+    engine = GovernanceEngine(FakeVerifier({}))
+
+    text = "The customer's account balance is 48000 rupees, unverified."
+    result = engine.evaluate(text, customer_support)
+
+    claim = result.claims[0]
+
+    assert claim.verdict == Verdict.UNVERIFIABLE
+    assert claim.risk.hallucination.detected is True
+    assert claim.remediation == Remediation.HEDGE
+    assert result.decision == Decision.MODIFY
+    assert "I can't fully verify this" in result.final_text
