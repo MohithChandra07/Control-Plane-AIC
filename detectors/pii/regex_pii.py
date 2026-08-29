@@ -15,17 +15,18 @@ import re
 from dataclasses import dataclass
 
 _PATTERNS: dict[str, re.Pattern[str]] = {
+    "api_key": re.compile(r"\b(?:sk-(?:proj-)?[a-zA-Z0-9_-]{20,}|AKIA[0-9A-Z]{16}|eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})\b"),
     "email": re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"),
     "phone": re.compile(r"(?<!\d)(?:\+?\d{1,3}[-.\s]?)?\d{10}(?!\d)"),
     "credit_card": re.compile(r"(?<!\d)(?:\d[ -]?){13,16}(?!\d)"),
     "government_id": re.compile(r"\b\d{3}[-\s]\d{2}[-\s]\d{4}\b"),
+    "iban": re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b"),
     "bank_account": re.compile(r"\b\d{9,18}\b"),
 }
 
 # Order matters: more specific patterns are checked first so a single span
-# isn't double-counted under a looser category (e.g. a 16-digit card number
-# would also match the bank_account digit-run pattern).
-_CATEGORY_PRIORITY = ["email", "government_id", "credit_card", "phone", "bank_account"]
+# isn't double-counted under a looser category.
+_CATEGORY_PRIORITY = ["api_key", "email", "government_id", "credit_card", "phone", "iban", "bank_account"]
 
 
 @dataclass
