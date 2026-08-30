@@ -1,34 +1,41 @@
 # ControlPlane
 
-![status](https://img.shields.io/badge/status-Phase%205%20%E2%80%94%20done-brightgreen)
-![tests](https://img.shields.io/badge/tests-169%20passing-brightgreen)
-![python](https://img.shields.io/badge/python-3.11%2B-blue)
-![license](https://img.shields.io/badge/license-MIT-lightgrey)
+<div align="center">
 
-**An AI governance and safety gateway.** ControlPlane sits between an
-application and an AI model/agent, inspects what goes in and comes out, and
-lets *policy* — not silent model behavior — decide whether a response or a
-tool call is allowed, modified, escalated, or blocked.
+![status](https://img.shields.io/badge/Status-Phase%205%20%E2%80%94%20Done-22C55E?style=for-the-badge)
+![tests](https://img.shields.io/badge/Tests-169%20Passing-22C55E?style=for-the-badge)
+![python](https://img.shields.io/badge/Language-Python%203.11%2B-00599C?style=for-the-badge&logo=python&logoColor=white)
+![web](https://img.shields.io/badge/Web_Console-Next.js%20%2F%20React-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![license](https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge)
+![Track](https://img.shields.io/badge/Accenture_AIC-Prototype_Development-DC2626?style=for-the-badge)
+![Institute](https://img.shields.io/badge/IIT%20Patna-2403cs04-1D4ED8?style=for-the-badge)
+
+<br/>
+
+**An AI governance and safety gateway. ControlPlane sits between an application and an AI model/agent, inspects what goes in and comes out, and lets policy — not silent model behavior — decide whether a response or a tool call is allowed, modified, escalated, or blocked.**
+
+<br/>
+
+*Mohith Chandra Gugulothu · Monal Gupta · Veda Vikas · IIT Patna*
+
+</div>
+
+---
+
+## What is this project?
+
+LLM outputs can hallucinate facts, leak PII, or hand an agent a number to act on that was never actually verified. Most teams find out after the bad response already reached a user, or after the agent already called a tool.
+
+**ControlPlane** sits in that gap: every response is checked *before* it ships, every consequential tool call is checked *before* it fires, and every decision is written to a tamper-evident audit trail — so the answer to "why did the model do that" is always a lookup, never a guess.
 
 ![ControlPlane 3D WebGL Showcase](docs/assets/hero_3d_showcase.png)
-
-LLM outputs can hallucinate facts, leak PII, or hand an agent a number to
-act on that was never actually verified. Most teams find out after the bad
-response already reached a user, or after the agent already called a tool.
-ControlPlane sits in that gap: every response is checked *before* it ships,
-every consequential tool call is checked *before* it fires, and every
-decision is written to a tamper-evident audit trail — so the answer to
-"why did the model do that" is always a lookup, never a guess.
 
 ```
 Application → ControlPlane Gateway → AI Model → ControlPlane Analysis
             → Policy Engine → ALLOW / MODIFY / ESCALATE / BLOCK → Application
 ```
 
-For agents, ControlPlane also intercepts consequential tool calls so an
-unverified or tainted claim (e.g. a hallucinated refund amount) can never
-silently become a real-world action. Implemented end to end — see Scene 7
-in [`docs/roadmap.md`](docs/roadmap.md).
+For agents, ControlPlane also intercepts consequential tool calls so an unverified or tainted claim (e.g. a hallucinated refund amount) can never silently become a real-world action. Implemented end to end — see Scene 7 in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Contents
 
@@ -44,11 +51,15 @@ in [`docs/roadmap.md`](docs/roadmap.md).
 - [Console](#console)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
+- [Team \& Contributors](#team--contributors)
+
+---
 
 ## Status
 
-**Phase 5 (Calibration + Demo Hardening) — all 5 phases done.** Built
-incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
+**Phase 5 (Calibration + Demo Hardening) — all 5 phases done.** Built incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
+
+---
 
 ## What's implemented
 
@@ -67,6 +78,8 @@ incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
 | **Human review loop** | Reviewers mark decisions Agree/Disagree in the console; once disagreement on `ESCALATE`/`BLOCK` crosses a threshold, `policy/recalibration.py` *suggests* (never auto-applies) a risk-appetite change. |
 | **Injection defense** | `detectors/injection.py` scans untrusted (`role="tool"`/`"function"`) messages for instruction-override phrasing and neutralizes matches before the request reaches the upstream model. A user's own `role="user"` message is never scanned this way. |
 
+---
+
 ## Adaptive Scrutiny Architecture
 
 ![Adaptive Scrutiny Configurations](docs/assets/adaptive_scrutiny.png)
@@ -74,13 +87,9 @@ incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
 Depth is earned, not spent uniformly. A lightweight Tier 0 pre-filter evaluates every payload first. Only when confidence falls below the tenant's scrutiny threshold does the full Tier 1 claim extraction, corpus verification, and PII inspection pipeline engage.
 
 **Known simplifications** — full list in [`docs/assumptions.md`](docs/assumptions.md):
-claim verification is a deterministic heuristic, not a real NLI model · PII
-detection is regex-based, not Presidio · taint matching is numeric-value only
-· the cost breaker is in-memory/per-process, not Redis-backed ·
-toxicity/policy/bias risk labels exist in the schema with no detector behind
-them yet · no metric is computed for `policy_violation` (labeled but
-undetected) · human agreement is real but not backfilled · recalibration is
-suggestion-only · Tier 2 deep verification isn't implemented.
+claim verification is a deterministic heuristic, not a real NLI model · PII detection is regex-based, not Presidio · taint matching is numeric-value only · the cost breaker is in-memory/per-process, not Redis-backed · toxicity/policy/bias risk labels exist in the schema with no detector behind them yet · no metric is computed for `policy_violation` (labeled but undetected) · human agreement is real but not backfilled · recalibration is suggestion-only · Tier 2 deep verification isn't implemented.
+
+---
 
 ## Quick start
 
@@ -94,17 +103,12 @@ docker compose up -d postgres
 uvicorn gateway.main:app --reload
 ```
 
-Point any OpenAI client at `http://localhost:8000/v1` instead of the real
-provider's base URL. The request is forwarded, governed, and audited; the
-response carries a `controlplane` extension field with the decision,
-scrutiny tier, per-claim verdicts/risk labels/remediations, and any
-tool-call gating decisions.
+Point any OpenAI client at `http://localhost:8000/v1` instead of the real provider's base URL. The request is forwarded, governed, and audited; the response carries a `controlplane` extension field with the decision, scrutiny tier, per-claim verdicts/risk labels/remediations, and any tool-call gating decisions.
 
-- **Tenant selection:** `X-ControlPlane-Tenant` header — one of
-  `customer_support`, `internal_copilot`, `regulated_agent` — defaults to
-  `DEFAULT_TENANT` from `.env`.
-- **Multi-turn taint tracking** needs a stable `conversation_id` in the
-  request body: `{"controlplane": {"conversation_id": "..."}}`.
+- **Tenant selection:** `X-ControlPlane-Tenant` header — one of `customer_support`, `internal_copilot`, `regulated_agent` — defaults to `DEFAULT_TENANT` from `.env`.
+- **Multi-turn taint tracking** needs a stable `conversation_id` in the request body: `{"controlplane": {"conversation_id": "..."}}`.
+
+---
 
 ## Example: a governed request
 
@@ -119,8 +123,7 @@ curl http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-The response is a normal OpenAI chat completion with one extra field —
-`controlplane` — carrying the full governance trace:
+The response is a normal OpenAI chat completion with one extra field — `controlplane` — carrying the full governance trace:
 
 ```jsonc
 {
@@ -153,9 +156,9 @@ The response is a normal OpenAI chat completion with one extra field —
 }
 ```
 
-`decision`, `tier`, and every field under `claims`/`tool_calls` are exactly
-what drives the console's drill-down view — nothing shown there is derived
-separately from what the gateway itself returns.
+`decision`, `tier`, and every field under `claims`/`tool_calls` are exactly what drives the console's drill-down view — nothing shown there is derived separately from what the gateway itself returns.
+
+---
 
 ## Project layout
 
@@ -181,13 +184,13 @@ tests/        169 unit + integration tests, incl. all 9 demo scenes
               end-to-end
 ```
 
+---
+
 ## Configuration
 
-Tenant policies live in `configs/*.yaml`, loaded via `policy/loader.py` into
-the `policy.models.Policy` schema. The shared tool sink catalog (which tool
-names map to which consequence category, e.g. `issue_refund` →
-`money_movement`) lives in `data/tools.yaml`, loaded via `policy/tools.py`.
-See those files for field-level docs.
+Tenant policies live in `configs/*.yaml`, loaded via `policy/loader.py` into the `policy.models.Policy` schema. The shared tool sink catalog (which tool names map to which consequence category, e.g. `issue_refund` → `money_movement`) lives in `data/tools.yaml`, loaded via `policy/tools.py`. See those files for field-level docs.
+
+---
 
 ## Tests
 
@@ -197,16 +200,9 @@ pytest
 
 ![Test Suite & Benchmark Execution](docs/assets/test_benchmark_terminal.png)
 
-169 tests across `tests/unit/` and `tests/integration/` cover policy
-loading/validation, the hash-chained audit ledger (incl. tamper detection),
-claim extraction/verification, PII detection, remediation logic, cross-turn
-taint lookup, tool-call gating, the cost breaker, prompt-injection
-detection, risk-appetite scaling, recalibration suggestions,
-calibration/ECE metrics, the benchmark dataset generator and harness, the
-traffic replayer, the console backend (incl. human review), and the gateway
-round trip through all 9 demo scenes end to end. See
-[`docs/demo-scenarios.md`](docs/demo-scenarios.md) for which test proves
-which scene.
+169 tests across `tests/unit/` and `tests/integration/` cover policy loading/validation, the hash-chained audit ledger (incl. tamper detection), claim extraction/verification, PII detection, remediation logic, cross-turn taint lookup, tool-call gating, the cost breaker, prompt-injection detection, risk-appetite scaling, recalibration suggestions, calibration/ECE metrics, the benchmark dataset generator and harness, the traffic replayer, the console backend (incl. human review), and the gateway round trip through all 9 demo scenes end to end. See [`docs/demo-scenarios.md`](docs/demo-scenarios.md) for which test proves which scene.
+
+---
 
 ## Benchmark
 
@@ -214,12 +210,9 @@ which scene.
 python -m bench.harness.run_benchmark
 ```
 
-Runs the 400-item labeled synthetic dataset (`bench/dataset/generate.py`)
-through the real gateway under three scrutiny configurations
-(`ALWAYS_SHALLOW` / `ALWAYS_DEEP` / `ADAPTIVE`), writing results to
-`bench/results/benchmark_results.json`. See
-[`docs/roadmap.md`](docs/roadmap.md) for the latest numbers and why cost
-isn't reported as a dollar figure in this harness.
+Runs the 400-item labeled synthetic dataset (`bench/dataset/generate.py`) through the real gateway under three scrutiny configurations (`ALWAYS_SHALLOW` / `ALWAYS_DEEP` / `ADAPTIVE`), writing results to `bench/results/benchmark_results.json`. See [`docs/roadmap.md`](docs/roadmap.md) for the latest numbers and why cost isn't reported as a dollar figure in this harness.
+
+---
 
 ## Console
 
@@ -231,9 +224,7 @@ isn't reported as a dollar figure in this harness.
 python -m demo.replayer.replay --count 10000
 ```
 
-Posts synthetic interactions through the real gateway to a local SQLite
-file (`demo/replayer/traffic.db` by default — pass `--database-url` to
-target real Postgres instead).
+Posts synthetic interactions through the real gateway to a local SQLite file (`demo/replayer/traffic.db` by default — pass `--database-url` to target real Postgres instead).
 
 **2. Run it:**
 
@@ -246,53 +237,33 @@ DATABASE_URL="sqlite+aiosqlite:///$(pwd)/demo/replayer/traffic.db" \
 cd showcase && npm install && npm run dev
 ```
 
-Open `http://localhost:3000/console` (or `http://localhost:5173/` for the Vite dashboard). It auto-refreshes every 5
-seconds and reads only from the audit ledger — nothing shown is
-hard-coded demo data.
+Open `http://localhost:3000/console` (or `http://localhost:5173/` for the Vite dashboard). It auto-refreshes every 5 seconds and reads only from the audit ledger — nothing shown is hard-coded demo data.
 
-Select a tenant to see (and set) its live risk-appetite slider and human
-review panel. Click a request row for a claim/tool-call drill-down, then
-click Agree/Disagree — `GET /api/human-agreement/{tenant}` and, once enough
-disagreement accumulates, `GET /api/recalibration/{tenant}`'s suggestion
-banner update immediately, no reload. See
-[`docs/demo-scenarios.md`](docs/demo-scenarios.md), Scene 9.
+Select a tenant to see (and set) its live risk-appetite slider and human review panel. Click a request row for a claim/tool-call drill-down, then click Agree/Disagree — `GET /api/human-agreement/{tenant}` and, once enough disagreement accumulates, `GET /api/recalibration/{tenant}`'s suggestion banner update immediately, no reload. See [`docs/demo-scenarios.md`](docs/demo-scenarios.md), Scene 9.
+
+---
 
 ## Troubleshooting
 
 **Gateway won't start / can't reach Postgres.**
-Confirm `docker compose up -d postgres` is actually running
-(`docker compose ps`) and that `DATABASE_URL` in `.env` matches the
-`postgres:16-alpine` service in `docker-compose.yml`
-(`postgresql+asyncpg://controlplane:controlplane@localhost:5432/controlplane`
-by default). The container's healthcheck must pass before the gateway can
-connect.
+Confirm `docker compose up -d postgres` is actually running (`docker compose ps`) and that `DATABASE_URL` in `.env` matches the `postgres:16-alpine` service in `docker-compose.yml` (`postgresql+asyncpg://controlplane:controlplane@localhost:5432/controlplane` by default). The container's healthcheck must pass before the gateway can connect.
 
 **401/403 from the upstream provider.**
-`UPSTREAM_API_KEY` in `.env` is still the placeholder (`sk-replace-me`) or
-invalid. `UPSTREAM_BASE_URL` and `UPSTREAM_DEFAULT_MODEL` must also point
-at a real OpenAI-compatible endpoint/model.
+`UPSTREAM_API_KEY` in `.env` is still the placeholder (`sk-replace-me`) or invalid. `UPSTREAM_BASE_URL` and `UPSTREAM_DEFAULT_MODEL` must also point at a real OpenAI-compatible endpoint/model.
 
 **Taint tracking isn't catching a later tool call.**
-Multi-turn taint lookup keys on `conversation_id`. If it's omitted, or
-changes between turns, ControlPlane has no way to link the tool call back
-to the earlier unverified claim — pass the same
-`{"controlplane": {"conversation_id": "..."}}` on every turn.
+Multi-turn taint lookup keys on `conversation_id`. If it's omitted, or changes between turns, ControlPlane has no way to link the tool call back to the earlier unverified claim — pass the same `{"controlplane": {"conversation_id": "..."}}` on every turn.
 
 **Console dashboard shows no data.**
-The dashboard only reads from the audit ledger — it won't show anything
-until you've run the replayer (or sent real traffic through the gateway)
-*against the same database* the console backend's `DATABASE_URL` points to.
+The dashboard only reads from the audit ledger — it won't show anything until you've run the replayer (or sent real traffic through the gateway) *against the same database* the console backend's `DATABASE_URL` points to.
 
 **`pytest` fails after a fresh clone.**
-Make sure you installed with the `dev` extra:
-`pip install -e ".[dev]"` — a plain `pip install -e .` skips `pytest`,
-`pytest-asyncio`, `aiosqlite`, and `ruff`.
+Make sure you installed with the `dev` extra: `pip install -e ".[dev]"` — a plain `pip install -e .` skips `pytest`, `pytest-asyncio`, `aiosqlite`, and `ruff`.
 
 **Benchmark run looks stale.**
-`bench/results/benchmark_results.json` is only overwritten when you run
-`python -m bench.harness.run_benchmark` yourself — the numbers in
-`docs/roadmap.md` are a snapshot from the last run in this repo, not a
-live value.
+`bench/results/benchmark_results.json` is only overwritten when you run `python -m bench.harness.run_benchmark` yourself — the numbers in `docs/roadmap.md` are a snapshot from the last run in this repo, not a live value.
+
+---
 
 ## Documentation
 
@@ -307,10 +278,22 @@ live value.
 | [`docs/assumptions.md`](docs/assumptions.md) | Full list of known simplifications |
 | [`docs/project-brief.md`](docs/project-brief.md) | Original project brief |
 
+---
+
 ## Team & Contributors
 
 This prototype was developed for the Accenture Innovation Challenge 2026 by:
-* **Mohith Chandra** — Team Lead
-* **Monal Gupta** — Core NLP & Fullstack Developer
-* **Veda Vikas** — System Architect & Developer
 
+* **[Mohith Chandra](https://github.com/MohithChandra07)** — Team Lead & Core Engineer
+* **[Monal Gupta](https://github.com/monalgupta)** — Core NLP & Fullstack Developer
+* **[Veda Vikas](https://github.com/vedavikas)** — System Architect & Developer
+
+---
+
+<div align="center">
+
+**We have done work.**  
+*Mohith Chandra Gugulothu · Monal Gupta · Veda Vikas*  
+**IIT Patna**
+
+</div>
