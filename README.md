@@ -8,7 +8,7 @@
 ![web](https://img.shields.io/badge/Web_Console-Next.js%20%2F%20React-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
 ![license](https://img.shields.io/badge/License-MIT-lightgrey?style=for-the-badge)
 ![Track](https://img.shields.io/badge/Accenture_AIC-Prototype_Development-DC2626?style=for-the-badge)
-![Institute](https://img.shields.io/badge/IIT%20Patna-2403cs04-1D4ED8?style=for-the-badge)
+![Institute](https://img.shields.io/badge/IIT%20Patna-TLE_Error-1D4ED8?style=for-the-badge)
 
 <br/>
 
