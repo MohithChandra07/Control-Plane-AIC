@@ -28,11 +28,11 @@ class NumberedCanvas(canvas.Canvas):
     def draw_page_decorations(self, page_count):
         self.saveState()
         self.setFont("Helvetica-Bold", 8)
-        self.setFillColor(colors.HexColor("#64748B"))
+        self.setFillColor(colors.HexColor("#475569"))
         
         # Header (pages 2+)
         if self._pageNumber > 1:
-            self.drawString(54, 750, "ControlPlane.ai — Technical README & Specification")
+            self.drawString(54, 750, "ControlPlane.ai — Technical Specification & Architecture Manual")
             self.drawRightString(612 - 54, 750, "Accenture Innovation Challenge 2026")
             self.setStrokeColor(colors.HexColor("#CBD5E1"))
             self.setLineWidth(0.5)
@@ -65,8 +65,8 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         'DocTitle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=24,
-        leading=28,
+        fontSize=26,
+        leading=30,
         textColor=colors.HexColor("#0F172A"),
         spaceAfter=6
     )
@@ -85,11 +85,11 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         'Heading1_Custom',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=14,
-        leading=18,
+        fontSize=13,
+        leading=17,
         textColor=colors.HexColor("#1E293B"),
         spaceBefore=14,
-        spaceAfter=8,
+        spaceAfter=6,
         keepWithNext=True
     )
 
@@ -97,11 +97,11 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         'Heading2_Custom',
         parent=styles['Heading2'],
         fontName='Helvetica-Bold',
-        fontSize=11,
-        leading=15,
+        fontSize=10.5,
+        leading=14.5,
         textColor=colors.HexColor("#334155"),
         spaceBefore=10,
-        spaceAfter=6,
+        spaceAfter=4,
         keepWithNext=True
     )
     
@@ -112,7 +112,7 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         fontSize=9.5,
         leading=13.5,
         textColor=colors.HexColor("#334155"),
-        spaceAfter=6
+        spaceAfter=5
     )
 
     bullet_style = ParagraphStyle(
@@ -138,40 +138,77 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         spaceAfter=8
     )
 
-    callout_style = ParagraphStyle(
-        'Callout_Text',
-        parent=body_style,
-        fontSize=9,
-        leading=13,
-        textColor=colors.HexColor("#1E1B4B")
-    )
-
     story = []
     
-    # Header Title Block
+    # COVER PAGE BLOCK
+    # ----------------------------------------------------
+    story.append(Spacer(1, 20))
     story.append(Paragraph("ControlPlane.ai", title_style))
-    story.append(Paragraph("Enterprise AI Governance & Safety Gateway — Technical README & System Architecture", subtitle_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#4F46E5"), spaceAfter=12))
-
-    # Executive Overview
-    story.append(Paragraph("1. Executive Overview & System Architecture", h1_style))
-    overview_text = (
-        "<b>ControlPlane.ai</b> is an inline enterprise AI governance and safety gateway designed to sit "
-        "between AI applications and Large Language Model (LLM) providers/agents. Rather than relying on unmonitored "
-        "model output or raw prompt completion, ControlPlane enforces organizational policies, scrutinizes request/response payload claims, "
-        "gates high-risk tool calls, and tracks compliance audit logs with cryptographic hash chaining."
+    story.append(Paragraph("Inline AI Governance & Safety Gateway", subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=2.5, color=colors.HexColor("#4F46E5"), spaceAfter=15))
+    
+    # Intro Summary Box
+    intro_p = Paragraph(
+        "<b>ControlPlane</b> is a high-performance inline gateway that sits between your AI application "
+        "and Large Language Models (LLMs) or agents. By intercepting every request and response, "
+        "ControlPlane validates claims, sanitizes PII, intercepts untrusted prompt injections, gates "
+        "high-consequence tool calls, and writes an immutable, cryptographically hash-chained audit ledger.",
+        body_style
     )
-    story.append(Paragraph(overview_text, body_style))
+    
+    intro_table = Table([[intro_p]], colWidths=[504])
+    intro_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8FAFC")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#E2E8F0")),
+        ('TOPPADDING', (0,0), (-1,-1), 12),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 12),
+        ('LEFTPADDING', (0,0), (-1,-1), 12),
+        ('RIGHTPADDING', (0,0), (-1,-1), 12),
+    ]))
+    story.append(intro_table)
+    story.append(Spacer(1, 15))
+
+    # Meta Info block
+    meta_data = [
+        [Paragraph("<b>Submission Track</b>", body_style), Paragraph("Accenture Innovation Challenge 2026 — Prototype Development Track", body_style)],
+        [Paragraph("<b>Developing Institution</b>", body_style), Paragraph("Indian Institute of Technology (IIT) Patna", body_style)],
+        [Paragraph("<b>Status</b>", body_style), Paragraph("Phase 5 (Calibration & Verification) — Complete & Verified", body_style)],
+        [Paragraph("<b>Open Source Repo</b>", body_style), Paragraph("https://github.com/MohithChandra07/Control-Plane-AIC", body_style)],
+        [Paragraph("<b>Project Team</b>", body_style), Paragraph("<b>Mohith Chandra</b> (Team Lead & Core Engineer)<br/><b>Monal Gupta</b> (Core NLP & Fullstack Developer)<br/><b>Veda Vikas</b> (System Architect & Developer)", body_style)]
+    ]
+    t_meta = Table(meta_data, colWidths=[140, 364])
+    t_meta.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E1")),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_meta)
+    
+    story.append(PageBreak())
+
+    # PAGE 2: ARCHITECTURE & CORE PIPELINE
+    # ----------------------------------------------------
+    story.append(Paragraph("1. System Architecture & Gateway Flow", h1_style))
+    story.append(Paragraph(
+        "ControlPlane integrates transparently into existing software architectures by presenting an OpenAI-compatible "
+        "endpoint. Your application updates only its API base URL, forwarding all traffic through the gateway.",
+        body_style
+    ))
     
     arch_flow = (
-        "<b>Flow Architecture:</b><br/>"
+        "<b>Transaction Flow:</b><br/>"
         "Application Client → ControlPlane Gateway → Upstream AI Model → Response Analysis → Policy Engine → [ALLOW / MODIFY / ESCALATE / BLOCK] → Application Client"
     )
     story.append(Paragraph(arch_flow, code_style))
-
-    # Key Architecture Highlights Table
+    
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("2. Technical Implementation Matrix", h1_style))
+    
     table_data = [
-        [Paragraph("<b>Component</b>", body_style), Paragraph("<b>Technical Specification & Role</b>", body_style)],
+        [Paragraph("<b>Capability</b>", body_style), Paragraph("<b>Technical Mechanism & Role</b>", body_style)],
         [Paragraph("<b>Adaptive Scrutiny</b>", body_style), Paragraph("Tier 0 cheap-gate heuristic pre-filter → Tier 1 full pipeline claim verification & PII detection.", body_style)],
         [Paragraph("<b>Claim Verification</b>", body_style), Paragraph("NLP Claim Extractor & Verification against knowledge corpus (SUPPORTED / CONTRADICTED / UNVERIFIABLE).", body_style)],
         [Paragraph("<b>Taint Propagation</b>", body_style), Paragraph("Multi-turn conversation state tracking; flags claims and prevents unverified data from triggering downstream tool calls.", body_style)],
@@ -192,30 +229,31 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t)
-    story.append(Spacer(1, 10))
-
-    # Implementation & Features
-    story.append(Paragraph("2. Core Technical Capabilities & Implementation Status", h1_style))
-    story.append(Paragraph("All 5 project development phases are fully implemented, benchmarked, and test-verified:", body_style))
     
-    story.append(Paragraph("• <b>OpenAI API Compatible Gateway:</b> Transparent drop-in replacement endpoint (`http://localhost:8000/v1`) with full request/response interception.", bullet_style))
-    story.append(Paragraph("• <b>PII & Safety Scrutiny:</b> Multi-label risk classification (PII regex detection, claim hallucination checking, toxicity & prompt injection filtering).", bullet_style))
-    story.append(Paragraph("• <b>Dynamic Risk Appetite Control:</b> Live tenant-level risk appetite slider allowing real-time adjustment of governance strictness without service restarts.", bullet_style))
-    story.append(Paragraph("• <b>Human-in-the-Loop & Recalibration:</b> Interactive review interface with automated threshold-triggered recalibration recommendations.", bullet_style))
-    story.append(Paragraph("• <b>Management Dashboard Console:</b> Real-time React + FastAPI management console connected to SQLite/PostgreSQL audit ledgers.", bullet_style))
+    story.append(PageBreak())
 
-    story.append(Spacer(1, 8))
-
-    # Verification & Benchmarks
-    story.append(Paragraph("3. Benchmark & Verification Summary", h1_style))
-    story.append(Paragraph("ControlPlane has been rigorously validated through automated suite tests and a 400-item synthetic evaluation benchmark:", body_style))
+    # PAGE 3: BENCHMARKS & DYNAMIC CALIBRATION
+    # ----------------------------------------------------
+    story.append(Paragraph("3. Empirical Evaluation & Calibration Metrics", h1_style))
+    story.append(Paragraph(
+        "ControlPlane is continuously evaluated using a 400-item synthetic benchmark dataset, measuring precision, "
+        "recall, latency overhead, and Expected Calibration Error (ECE) under three distinct configurations:",
+        body_style
+    ))
+    
+    story.append(Paragraph("• <b>ALWAYS_SHALLOW (Tier 0 Gate):</b> Fast execution (~1.71ms latency) but runs no advanced verification or PII checks.", bullet_style))
+    story.append(Paragraph("• <b>ALWAYS_DEEP (Full Pipeline):</b> High precision and recall (~2.94ms latency) but runs full claim verification on all inputs.", bullet_style))
+    story.append(Paragraph("• <b>ADAPTIVE (Dynamic Routing):</b> Routes dynamically based on confidence thresholds, maintaining 99.4% recall while saving 30.5% in execution overhead.", bullet_style))
+    
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("Key Verification Statistics", h2_style))
 
     bench_data = [
         [Paragraph("<b>Evaluation Metric</b>", body_style), Paragraph("<b>Measured Result</b>", body_style), Paragraph("<b>Impact & Notes</b>", body_style)],
         [Paragraph("Automated Test Suite", body_style), Paragraph("<b>169 / 169 Passing</b>", body_style), Paragraph("100% test coverage across unit & integration scenes.", body_style)],
         [Paragraph("Synthetic Traffic Replayer", body_style), Paragraph("<b>10,000 requests / 100s</b>", body_style), Paragraph("Demonstrated high-throughput audit ledger logging.", body_style)],
         [Paragraph("Calibration Error (ECE)", body_style), Paragraph("<b>Expected Error &lt; 0.05</b>", body_style), Paragraph("Measured alignment between risk scores and true outputs.", body_style)],
-        [Paragraph("Scrutiny Performance", body_style), Paragraph("<b>Adaptive Routing</b>", body_style), Paragraph("Balances latency (Tier 0 cheap gate) and accuracy (Tier 1).", body_style)]
+        [Paragraph("Multi-Tenant Policy", body_style), Paragraph("<b>3 Configurations</b>", body_style), Paragraph("Dedicated enforcement rules for Support, Copilot, and Regulated agent.", body_style)]
     ]
 
     t_bench = Table(bench_data, colWidths=[140, 130, 234])
@@ -229,34 +267,73 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t_bench)
+    
     story.append(Spacer(1, 10))
+    story.append(Paragraph("4. Human-in-the-Loop & Recalibration", h1_style))
+    story.append(Paragraph(
+        "ControlPlane features a live React dashboard where compliance reviewers mark governance decisions as "
+        "<b>Agree / Disagree</b>. Disagreement scores feed directly into `policy/recalibration.py`. When disagreements "
+        "cross the confidence threshold, the engine automatically suggests optimized updates to the tenant's risk appetite.",
+        body_style
+    ))
+    
+    story.append(PageBreak())
 
-    # Quick Start & Deployment
-    story.append(Paragraph("4. Quick Start & Execution Guide", h1_style))
+    # PAGE 4: QUICKSTART & INTEGRATION
+    # ----------------------------------------------------
+    story.append(Paragraph("5. Technical Quickstart & API Integration Guide", h1_style))
+    story.append(Paragraph(
+        "Deploy the gateway locally or in a containerized environment, and route model payloads to it directly:",
+        body_style
+    ))
+    
     quickstart_code = (
-        "# 1. Environment Setup & Installation<br/>"
+        "# 1. Environment Setup & Dependency Installation<br/>"
         "python3 -m venv .venv && source .venv/bin/activate<br/>"
         "pip install -e \".[dev]\"<br/><br/>"
-        "# 2. Launch Gateway Service<br/>"
+        "# 2. Launch Gateway Proxy Server<br/>"
         "uvicorn gateway.main:app --port 8000 --reload<br/><br/>"
-        "# 3. Run Validation Test Suite & Benchmark<br/>"
+        "# 3. Run Validation Test Suite & Benchmark Harness<br/>"
         "pytest<br/>"
         "python -m bench.harness.run_benchmark<br/><br/>"
-        "# 4. Launch Governance Console & Dashboard<br/>"
-        "uvicorn console.backend.main:app --port 8001<br/>"
-        "cd console/frontend && npm install && npm run dev"
+        "# 4. Launch Governance Console Dashboard Backend<br/>"
+        "DATABASE_URL=\"sqlite+aiosqlite:///$(pwd)/demo/replayer/traffic.db\" \\<br/>"
+        "  uvicorn console.backend.main:app --port 8002 --reload"
     )
     story.append(Paragraph(quickstart_code, code_style))
 
-    # Repository Reference
-    story.append(Paragraph("5. Official Repository Reference & Project Team", h1_style))
-    story.append(Paragraph("<b>Public GitHub Repository:</b> https://github.com/MohithChandra07/Control-Plane-AIC", body_style))
-    story.append(Paragraph("<b>Submission Track:</b> Accenture Innovation Challenge 2026 — Prototype Development", body_style))
-    story.append(Spacer(1, 4))
-    story.append(Paragraph("<b>Project Team & Roles:</b>", h2_style))
-    story.append(Paragraph("• <b>Mohith Chandra:</b> Team Lead", bullet_style))
-    story.append(Paragraph("• <b>Monal Gupta:</b> Core NLP & Fullstack Developer", bullet_style))
-    story.append(Paragraph("• <b>Veda Vikas:</b> System Architect & Developer", bullet_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("Sample Intercepted JSON Response", h2_style))
+    story.append(Paragraph(
+        "The gateway returns a standard OpenAI ChatCompletion payload containing a nested `controlplane` block "
+        "representing the full audit trail and verification verdict:",
+        body_style
+    ))
+    
+    json_payload = (
+        "{<br/>"
+        "  \"id\": \"chatcmpl-123\",<br/>"
+        "  \"choices\": [{ \"message\": { \"role\": \"assistant\", \"content\": \"...\" } }],<br/>"
+        "  \"controlplane\": {<br/>"
+        "    \"request_id\": \"req-abc\",<br/>"
+        "    \"tenant_id\": \"customer_support\",<br/>"
+        "    \"decision\": \"MODIFY\",<br/>"
+        "    \"tier\": 1,<br/>"
+        "    \"claims\": [<br/>"
+        "      { \"claim_id\": \"claim-1\", \"text\": \"Refund processed...\", \"verdict\": \"SUPPORTED\" }<br/>"
+        "    ]<br/>"
+        "  }<br/>"
+        "}"
+    )
+    story.append(Paragraph(json_payload, code_style))
+    
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("6. Project Team & Reference", h1_style))
+    story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — mohithg404@gmail.com", bullet_style))
+    story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — monalgupta.work@gmail.com", bullet_style))
+    story.append(Paragraph("• <b>Veda Vikas</b> (System Architect & Developer) — vedavikas02@gmail.com", bullet_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("<b>GitHub Repository:</b> https://github.com/MohithChandra07/Control-Plane-AIC", body_style))
 
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"Successfully generated {filename}")
