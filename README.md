@@ -1,89 +1,77 @@
 # ControlPlane
 
-ControlPlane is an AI governance and safety gateway: it sits between an
+![status](https://img.shields.io/badge/status-Phase%205%20%E2%80%94%20done-brightgreen)
+![tests](https://img.shields.io/badge/tests-145%20passing-brightgreen)
+![python](https://img.shields.io/badge/python-3.11%2B-blue)
+![license](https://img.shields.io/badge/license-MIT-lightgrey)
+
+**An AI governance and safety gateway.** ControlPlane sits between an
 application and an AI model/agent, inspects what goes in and comes out, and
-lets policy — not silent model behavior — decide whether a response or a
+lets *policy* — not silent model behavior — decide whether a response or a
 tool call is allowed, modified, escalated, or blocked.
 
+LLM outputs can hallucinate facts, leak PII, or hand an agent a number to
+act on that was never actually verified. Most teams find out after the bad
+response already reached a user, or after the agent already called a tool.
+ControlPlane sits in that gap: every response is checked *before* it ships,
+every consequential tool call is checked *before* it fires, and every
+decision is written to a tamper-evident audit trail — so the answer to
+"why did the model do that" is always a lookup, never a guess.
+
 ```
-Application → ControlPlane Gateway → AI Model → ControlPlane Analysis → Policy Engine → ALLOW / MODIFY / ESCALATE / BLOCK → Application
+Application → ControlPlane Gateway → AI Model → ControlPlane Analysis
+            → Policy Engine → ALLOW / MODIFY / ESCALATE / BLOCK → Application
 ```
 
 For agents, ControlPlane also intercepts consequential tool calls so an
 unverified or tainted claim (e.g. a hallucinated refund amount) can never
-silently become a real-world action — this is implemented end to end,
-see Scene 7 in `docs/roadmap.md`.
+silently become a real-world action. Implemented end to end — see Scene 7
+in [`docs/roadmap.md`](docs/roadmap.md).
 
-## Status: Phase 5 (Calibration + Demo Hardening) — all phases done
+## Contents
 
-This repository was built incrementally, phase by phase (see
-`docs/roadmap.md`). **Phases 1–5 are done.** Concretely, right now:
+- [Status](#status)
+- [What's implemented](#whats-implemented)
+- [Quick start](#quick-start)
+- [Example: a governed request](#example-a-governed-request)
+- [Project layout](#project-layout)
+- [Configuration](#configuration)
+- [Tests](#tests)
+- [Benchmark](#benchmark)
+- [Console](#console)
+- [Troubleshooting](#troubleshooting)
+- [Documentation](#documentation)
 
-- A real client can send an OpenAI-style chat request through the
-  ControlPlane gateway, have it forwarded to an upstream OpenAI-compatible
-  provider, and get a governed response back.
-- Responses go through adaptive scrutiny (Tier 0 cheap gate → Tier 1 full
-  pipeline): claim extraction, claim verification against a small fake
-  corpus (SUPPORTED/CONTRADICTED/UNVERIFIABLE — UNVERIFIABLE is never
-  treated as false), PII detection, and a multi-label risk vector where a
-  single claim can be e.g. both `hallucination` and `pii` at once.
-- The policy engine applies **surgical remediation** per claim (hedge,
-  redact, remove, cite, escalate) rather than blocking a whole response
-  for one bad sentence — full-response BLOCK is reserved for deliberate
-  cases like a hard-block PII category.
-- A claim ControlPlane can't confirm is **tainted**, and that taint
-  **propagates across conversation turns**: if a later turn's tool call
-  (e.g. `issue_refund(amount=48000)`) uses a value that traces back to an
-  unverified/contradicted claim earlier in the same conversation, the
-  call is blocked before it ever reaches the application.
-- A **cost circuit breaker** trips per tenant on request-count or
-  token-volume spikes, short-circuiting before the upstream provider is
-  ever called. A **cheap-model-first** routing option calls a cheaper
-  model, validates its response with the same governance engine, and
-  only retries against a stronger model when the checker flags a problem.
-- Every request produces a hash-chained audit ledger entry, plus one
-  entry per claim and one per gated tool call.
-- Three tenant policies (`configs/*.yaml`) drive different outcomes for
-  the same input.
-- A **benchmark harness** (`bench/`) runs a 400-item labeled synthetic
-  dataset through the real gateway under three scrutiny configurations
-  and reports real, measured precision/recall/latency numbers — see
-  `docs/roadmap.md` for the actual results from the last run.
-- A **traffic replayer** (`demo/replayer/`) populates the audit ledger
-  with synthetic traffic (measured: 10,000 interactions in ~100s in this
-  environment) so the **console** — a small read-write API
-  (`console/backend/`) plus a React dashboard (`console/frontend/`) — has
-  real data to show: decision breakdown, latency, a recent-requests
-  table, a per-request drill-down into claims and tool-call decisions,
-  a live risk-appetite slider, and human review (Agree/Disagree) controls.
-- **Expected Calibration Error** (`bench/metrics/calibration.py`) is
-  computed from real (score, outcome) pairs out of an actual benchmark
-  run, and a **risk-appetite control** (`policy/appetite.py`) lets a
-  tenant's caution be dialed up or down live, without a restart or a YAML
-  edit — both measured effects are in `docs/evaluation.md`.
-- A **human review + recalibration loop**: reviewers can mark a gateway
-  decision Agree/Disagree from the console; once disagreement on
-  ESCALATE/BLOCK decisions crosses a threshold, `policy/recalibration.py`
-  *suggests* (never silently applies) a risk-appetite adjustment.
-- **Prompt-injection detection** (`detectors/injection.py`) scans
-  untrusted (`role="tool"`/`"function"`) messages for instruction-override
-  phrasing and neutralizes matches before the request ever reaches the
-  upstream model — a user's own `role="user"` message is never scanned
-  this way.
+## Status
 
-**Known simplifications** (see `docs/assumptions.md` for the full list):
-claim verification is a deterministic heuristic, not a real NLI model; PII
-detection is regex-based, not Presidio; taint matching is numeric-value
-only; the cost breaker is in-memory/per-process, not Redis-backed;
-toxicity/policy/bias risk labels exist in the schema but have no detector
-behind them yet; no metric is computed for `policy_violation` (labeled in
-the dataset, no detector exists); human agreement is real but not
-backfilled; recalibration is a suggestion, never an auto-apply; Tier 2
-deep verification isn't implemented.
+**Phase 5 (Calibration + Demo Hardening) — all 5 phases done.** Built
+incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
 
-For the full documentation set — architecture diagrams, terminology,
-per-tenant policy breakdown, all 9 demo scenes with exact reproduce
-commands, and every measured evaluation number — see `docs/`.
+## What's implemented
+
+| Area | Behavior |
+|---|---|
+| **Gateway** | Real OpenAI-compatible chat requests are forwarded to an upstream provider and returned governed. |
+| **Scrutiny** | Adaptive two-tier pipeline (Tier 0 cheap gate → Tier 1 full pipeline): claim extraction, claim verification against a fake corpus (`SUPPORTED` / `CONTRADICTED` / `UNVERIFIABLE` — unverifiable is never treated as false), PII detection, and a multi-label risk vector (a claim can be both `hallucination` *and* `pii` at once). |
+| **Remediation** | Surgical, per-claim (hedge, redact, remove, cite, escalate) — full-response `BLOCK` is reserved for deliberate cases like a hard-block PII category. |
+| **Taint tracking** | An unconfirmed claim is *tainted*, and taint propagates across conversation turns: if a later tool call (e.g. `issue_refund(amount=48000)`) traces back to an unverified/contradicted claim, it's blocked before it reaches the application. |
+| **Cost control** | A per-tenant circuit breaker trips on request-count or token-volume spikes, short-circuiting before the upstream provider is called. An optional cheap-model-first router validates a cheap model's response with the same governance engine and only escalates to a stronger model on failure. |
+| **Audit** | Every request produces a hash-chained ledger entry, plus one entry per claim and one per gated tool call. |
+| **Multi-tenant policy** | Three tenant policies (`configs/*.yaml`) drive different outcomes for identical input. |
+| **Benchmarking** | A harness (`bench/`) runs a 400-item labeled synthetic dataset through the real gateway under three scrutiny configurations, reporting measured precision/recall/latency — see [`docs/roadmap.md`](docs/roadmap.md) for the latest numbers. |
+| **Console** | A traffic replayer (`demo/replayer/`, measured: 10,000 interactions in ~100s) plus a read/write API (`console/backend/`) and React dashboard (`console/frontend/`) showing decision breakdown, latency, a recent-requests table, per-request claim/tool-call drill-down, a live risk-appetite slider, and human review (Agree/Disagree). |
+| **Calibration** | Expected Calibration Error (`bench/metrics/calibration.py`) computed from real (score, outcome) pairs; a live risk-appetite control (`policy/appetite.py`) needs no restart or YAML edit — both measured in [`docs/evaluation.md`](docs/evaluation.md). |
+| **Human review loop** | Reviewers mark decisions Agree/Disagree in the console; once disagreement on `ESCALATE`/`BLOCK` crosses a threshold, `policy/recalibration.py` *suggests* (never auto-applies) a risk-appetite change. |
+| **Injection defense** | `detectors/injection.py` scans untrusted (`role="tool"`/`"function"`) messages for instruction-override phrasing and neutralizes matches before the request reaches the upstream model. A user's own `role="user"` message is never scanned this way. |
+
+**Known simplifications** — full list in [`docs/assumptions.md`](docs/assumptions.md):
+claim verification is a deterministic heuristic, not a real NLI model · PII
+detection is regex-based, not Presidio · taint matching is numeric-value only
+· the cost breaker is in-memory/per-process, not Redis-backed ·
+toxicity/policy/bias risk labels exist in the schema with no detector behind
+them yet · no metric is computed for `policy_violation` (labeled but
+undetected) · human agreement is real but not backfilled · recalibration is
+suggestion-only · Tier 2 deep verification isn't implemented.
 
 ## Quick start
 
@@ -97,44 +85,118 @@ docker compose up -d postgres
 uvicorn gateway.main:app --reload
 ```
 
-Then point any OpenAI client at `http://localhost:8000/v1` instead of the
-real provider's base URL — the request is forwarded, governed, and
-audited. The response carries a `controlplane` extension field with the
-decision, scrutiny tier, per-claim verdicts/risk labels/remediations, and
-any tool-call gating decisions.
+Point any OpenAI client at `http://localhost:8000/v1` instead of the real
+provider's base URL. The request is forwarded, governed, and audited; the
+response carries a `controlplane` extension field with the decision,
+scrutiny tier, per-claim verdicts/risk labels/remediations, and any
+tool-call gating decisions.
 
-Select a tenant policy with the `X-ControlPlane-Tenant` header (one of
-`customer_support`, `internal_copilot`, `regulated_agent`); it defaults to
-`DEFAULT_TENANT` from `.env` otherwise. Multi-turn taint tracking needs a
-stable `conversation_id`, passed via the request body's `controlplane`
-extension object: `{"controlplane": {"conversation_id": "..."}}`.
+- **Tenant selection:** `X-ControlPlane-Tenant` header — one of
+  `customer_support`, `internal_copilot`, `regulated_agent` — defaults to
+  `DEFAULT_TENANT` from `.env`.
+- **Multi-turn taint tracking** needs a stable `conversation_id` in the
+  request body: `{"controlplane": {"conversation_id": "..."}}`.
+
+## Example: a governed request
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "X-ControlPlane-Tenant: customer_support" \
+  -d '{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "What is our refund policy?"}],
+    "controlplane": {"conversation_id": "conv-123"}
+  }'
+```
+
+The response is a normal OpenAI chat completion with one extra field —
+`controlplane` — carrying the full governance trace:
+
+```jsonc
+{
+  "id": "chatcmpl-...",
+  "choices": [{ "message": { "role": "assistant", "content": "..." } }],
+  // ...standard OpenAI fields...
+  "controlplane": {
+    "request_id": "req-...",
+    "tenant_id": "customer_support",
+    "decision": "MODIFY",
+    "latency_ms": 842.15,
+    "tier": 1,
+    "turn_id": 1,
+    "model_used": "gpt-4o-mini",
+    "rerouted": false,
+    "injection_detections": [],
+    "claims": [
+      {
+        "claim_id": "claim-1",
+        "text": "Refunds are processed within 30 days.",
+        "verdict": "SUPPORTED",
+        "risk_labels": [],
+        "risk": { "hallucination": 0.0, "pii": 0.0 },
+        "remediation": null,
+        "taint_status": "clean"
+      }
+    ],
+    "tool_calls": []
+  }
+}
+```
+
+`decision`, `tier`, and every field under `claims`/`tool_calls` are exactly
+what drives the console's drill-down view — nothing shown there is derived
+separately from what the gateway itself returns.
+
+## Project layout
+
+```
+gateway/      OpenAI-compatible HTTP entrypoint, provider adapters, cost
+              breaker, cheap-model reroute, tool-call gating (spec §9, §11, §17)
+policy/       Policy schema/loader, governance engine, risk appetite,
+              recalibration suggestions, tool sink catalog
+detectors/    Claim extraction, heuristic claim verification, PII (regex),
+              prompt-injection scanning, Tier 0 cheap gate
+ledger/       Hash-chained audit ledger, cross-turn taint lookup, DB models
+configs/      Per-tenant policy YAML (customer_support, internal_copilot,
+              regulated_agent)
+data/         Shared tool sink catalog + fake verification corpus
+bench/        400-item labeled synthetic dataset, harness, ECE/calibration
+              metrics, results
+demo/         Traffic replayer for populating the console with real ledger data
+console/      Read/write API (backend/) + React dashboard (frontend/)
+docs/         Architecture, terminology, policy breakdown, demo scenarios,
+              evaluation numbers, known simplifications
+tests/        145 unit + integration tests, incl. all 9 demo scenes
+              end-to-end
+```
 
 ## Configuration
 
-Tenant policies live in `configs/*.yaml` and are loaded through
-`policy/loader.py` into the `policy.models.Policy` schema. The shared tool
-sink catalog (which tool names map to which consequence category, e.g.
-`issue_refund` → `money_movement`) lives in `data/tools.yaml`, loaded via
-`policy/tools.py` — see those files for what each field means.
+Tenant policies live in `configs/*.yaml`, loaded via `policy/loader.py` into
+the `policy.models.Policy` schema. The shared tool sink catalog (which tool
+names map to which consequence category, e.g. `issue_refund` →
+`money_movement`) lives in `data/tools.yaml`, loaded via `policy/tools.py`.
+See those files for field-level docs.
 
-## Running tests
+## Tests
 
 ```bash
 pytest
 ```
 
-145 tests cover policy loading/validation, the hash-chained audit ledger
-(including tamper detection), claim extraction, PII detection, the
-heuristic claim verifier, the governance engine's remediation logic,
-taint lookup across conversation turns, tool-call gating, the cost
-breaker, prompt-injection detection, risk appetite scaling, recalibration
-suggestions, calibration/ECE metrics, the benchmark dataset generator and
-harness, the traffic replayer, the console backend API (including
-human review), and the gateway round trip including all 9 demo scenes
-end to end — see `tests/unit/` and `tests/integration/`, and
-`docs/demo-scenarios.md` for which test proves which scene.
+145 tests across `tests/unit/` and `tests/integration/` cover policy
+loading/validation, the hash-chained audit ledger (incl. tamper detection),
+claim extraction/verification, PII detection, remediation logic, cross-turn
+taint lookup, tool-call gating, the cost breaker, prompt-injection
+detection, risk-appetite scaling, recalibration suggestions,
+calibration/ECE metrics, the benchmark dataset generator and harness, the
+traffic replayer, the console backend (incl. human review), and the gateway
+round trip through all 9 demo scenes end to end. See
+[`docs/demo-scenarios.md`](docs/demo-scenarios.md) for which test proves
+which scene.
 
-## Running the benchmark
+## Benchmark
 
 ```bash
 python -m bench.harness.run_benchmark
@@ -142,22 +204,24 @@ python -m bench.harness.run_benchmark
 
 Runs the 400-item labeled synthetic dataset (`bench/dataset/generate.py`)
 through the real gateway under three scrutiny configurations
-(ALWAYS_SHALLOW / ALWAYS_DEEP / ADAPTIVE) and writes real, measured
-results to `bench/results/benchmark_results.json`. See `docs/roadmap.md`
-for the actual numbers from the last run in this repo, and why cost
-isn't reported as a dollar figure in this particular harness.
+(`ALWAYS_SHALLOW` / `ALWAYS_DEEP` / `ADAPTIVE`), writing results to
+`bench/results/benchmark_results.json`. See
+[`docs/roadmap.md`](docs/roadmap.md) for the latest numbers and why cost
+isn't reported as a dollar figure in this harness.
 
-## Populating the console with traffic
+## Console
+
+**1. Populate it with traffic:**
 
 ```bash
 python -m demo.replayer.replay --count 10000
 ```
 
 Posts synthetic interactions through the real gateway to a local SQLite
-file (`demo/replayer/traffic.db` by default; pass `--database-url` to
-target real Postgres instead), so the console has real data to show.
+file (`demo/replayer/traffic.db` by default — pass `--database-url` to
+target real Postgres instead).
 
-## Running the console
+**2. Run it:**
 
 ```bash
 # Terminal 1 — read-only API over the audit ledger
@@ -168,13 +232,63 @@ DATABASE_URL="sqlite+aiosqlite:///$(pwd)/demo/replayer/traffic.db" \
 cd console/frontend && npm install && npm run dev
 ```
 
-Open the printed `http://localhost:5173/` URL. The dashboard auto-refreshes
-every 5 seconds and reads only from the audit ledger — nothing on it is
+Open the printed `http://localhost:5173/` URL. It auto-refreshes every 5
+seconds and reads only from the audit ledger — nothing shown is
 hard-coded demo data.
 
-Select a tenant to see (and set) its live **risk appetite** slider and its
-**human review** panel. Click a request row to open its drill-down
-drawer, then click Agree/Disagree on any claim or on the overall decision
-— `GET /api/human-agreement/{tenant}` and, once enough disagreement
-accumulates, `GET /api/recalibration/{tenant}`'s suggestion banner update
-immediately, no reload. See `docs/demo-scenarios.md` Scene 9.
+Select a tenant to see (and set) its live risk-appetite slider and human
+review panel. Click a request row for a claim/tool-call drill-down, then
+click Agree/Disagree — `GET /api/human-agreement/{tenant}` and, once enough
+disagreement accumulates, `GET /api/recalibration/{tenant}`'s suggestion
+banner update immediately, no reload. See
+[`docs/demo-scenarios.md`](docs/demo-scenarios.md), Scene 9.
+
+## Troubleshooting
+
+**Gateway won't start / can't reach Postgres.**
+Confirm `docker compose up -d postgres` is actually running
+(`docker compose ps`) and that `DATABASE_URL` in `.env` matches the
+`postgres:16-alpine` service in `docker-compose.yml`
+(`postgresql+asyncpg://controlplane:controlplane@localhost:5432/controlplane`
+by default). The container's healthcheck must pass before the gateway can
+connect.
+
+**401/403 from the upstream provider.**
+`UPSTREAM_API_KEY` in `.env` is still the placeholder (`sk-replace-me`) or
+invalid. `UPSTREAM_BASE_URL` and `UPSTREAM_DEFAULT_MODEL` must also point
+at a real OpenAI-compatible endpoint/model.
+
+**Taint tracking isn't catching a later tool call.**
+Multi-turn taint lookup keys on `conversation_id`. If it's omitted, or
+changes between turns, ControlPlane has no way to link the tool call back
+to the earlier unverified claim — pass the same
+`{"controlplane": {"conversation_id": "..."}}` on every turn.
+
+**Console dashboard shows no data.**
+The dashboard only reads from the audit ledger — it won't show anything
+until you've run the replayer (or sent real traffic through the gateway)
+*against the same database* the console backend's `DATABASE_URL` points to.
+
+**`pytest` fails after a fresh clone.**
+Make sure you installed with the `dev` extra:
+`pip install -e ".[dev]"` — a plain `pip install -e .` skips `pytest`,
+`pytest-asyncio`, `aiosqlite`, and `ruff`.
+
+**Benchmark run looks stale.**
+`bench/results/benchmark_results.json` is only overwritten when you run
+`python -m bench.harness.run_benchmark` yourself — the numbers in
+`docs/roadmap.md` are a snapshot from the last run in this repo, not a
+live value.
+
+## Documentation
+
+| Doc | Covers |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | System diagrams and component boundaries |
+| [`docs/terminology.md`](docs/terminology.md) | Shared vocabulary (tier, taint, sink, remediation, etc.) |
+| [`docs/policies.md`](docs/policies.md) | Per-tenant policy breakdown |
+| [`docs/roadmap.md`](docs/roadmap.md) | Phase history, demo scenes, latest benchmark numbers |
+| [`docs/evaluation.md`](docs/evaluation.md) | Measured calibration and risk-appetite effects |
+| [`docs/demo-scenarios.md`](docs/demo-scenarios.md) | All 9 demo scenes with exact reproduce commands and the test proving each |
+| [`docs/assumptions.md`](docs/assumptions.md) | Full list of known simplifications |
+| [`docs/project-brief.md`](docs/project-brief.md) | Original project brief |
