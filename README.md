@@ -285,15 +285,17 @@ Make sure you installed with the `dev` extra: `pip install -e ".[dev]"` — a pl
 This prototype was developed for the Accenture Innovation Challenge 2026 by:
 
 * **[Mohith Chandra](https://github.com/MohithChandra07)** — Team Lead & Core Engineer
-* **[Monal Gupta](https://github.com/monalgupta)** — Core NLP & Fullstack Developer
-* **[Veda Vikas](https://github.com/vedavikas)** — System Architect & Developer
+* **[Monal Gupta](https://github.com/monalgupta89-coder)** — Core NLP & Fullstack Developer
+* **[Veda Vikas](https://github.com/VEDAVIKASD)** — System Architect & Developer
 
 ---
 
 <div align="center">
 
 **We have done work.**  
-*Mohith Chandra Gugulothu · Monal Gupta · Veda Vikas*  
+*Mohith Chandra Gugulothu 
+· Monal Gupta 
+· Veda Vikas*  
 **IIT Patna**
 
 </div>
