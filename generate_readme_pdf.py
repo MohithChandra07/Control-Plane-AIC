@@ -345,9 +345,9 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     story.append(Spacer(1, 5))
     
     story.append(Paragraph("7. Project Team & Reference", h1_style))
-    story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — mohithg404@gmail.com", bullet_style))
-    story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — monalgupta.work@gmail.com", bullet_style))
-    story.append(Paragraph("• <b>Veda Vikas</b> (System Architect & Developer) — vedavikas02@gmail.com", bullet_style))
+    story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — https://github.com/MohithChandra07", bullet_style))
+    story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — https://github.com/monalgupta89-coder", bullet_style))
+    story.append(Paragraph("• <b>Veda Vikas</b> (System Architect & Developer) — https://github.com/VEDAVIKASD", bullet_style))
     story.append(Spacer(1, 5))
     story.append(Paragraph("<b>GitHub Repository:</b> https://github.com/MohithChandra07/Control-Plane-AIC", body_style))
 

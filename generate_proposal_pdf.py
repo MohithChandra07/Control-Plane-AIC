@@ -222,9 +222,9 @@ def create_proposal_pdf(filename="ControlPlane_Business_Proposal.pdf"):
     # Project Team
     story.append(Spacer(1, 4))
     story.append(Paragraph("8. Project Team & Contributors", h1_style))
-    story.append(Paragraph("• <b>Mohith Chandra:</b> Team Lead", bullet_style))
-    story.append(Paragraph("• <b>Monal Gupta:</b> Core NLP & Fullstack Developer", bullet_style))
-    story.append(Paragraph("• <b>Veda Vikas:</b> System Architect & Developer", bullet_style))
+    story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — https://github.com/MohithChandra07", bullet_style))
+    story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — https://github.com/monalgupta89-coder", bullet_style))
+    story.append(Paragraph("• <b>Veda Vikas</b> (System Architect & Developer) — https://github.com/VEDAVIKASD", bullet_style))
 
     doc.build(story, canvasmaker=ProposalNumberedCanvas)
     print(f"Successfully generated {filename}")
