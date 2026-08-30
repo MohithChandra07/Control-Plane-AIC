@@ -1,7 +1,7 @@
 # ControlPlane
 
 ![status](https://img.shields.io/badge/status-Phase%205%20%E2%80%94%20done-brightgreen)
-![tests](https://img.shields.io/badge/tests-145%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-169%20passing-brightgreen)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -9,6 +9,8 @@
 application and an AI model/agent, inspects what goes in and comes out, and
 lets *policy* — not silent model behavior — decide whether a response or a
 tool call is allowed, modified, escalated, or blocked.
+
+![ControlPlane 3D WebGL Showcase](docs/assets/hero_3d_showcase.png)
 
 LLM outputs can hallucinate facts, leak PII, or hand an agent a number to
 act on that was never actually verified. Most teams find out after the bad
@@ -32,6 +34,7 @@ in [`docs/roadmap.md`](docs/roadmap.md).
 
 - [Status](#status)
 - [What's implemented](#whats-implemented)
+- [Adaptive Scrutiny Architecture](#adaptive-scrutiny-architecture)
 - [Quick start](#quick-start)
 - [Example: a governed request](#example-a-governed-request)
 - [Project layout](#project-layout)
@@ -59,10 +62,16 @@ incrementally; see [`docs/roadmap.md`](docs/roadmap.md) for the full history.
 | **Audit** | Every request produces a hash-chained ledger entry, plus one entry per claim and one per gated tool call. |
 | **Multi-tenant policy** | Three tenant policies (`configs/*.yaml`) drive different outcomes for identical input. |
 | **Benchmarking** | A harness (`bench/`) runs a 400-item labeled synthetic dataset through the real gateway under three scrutiny configurations, reporting measured precision/recall/latency — see [`docs/roadmap.md`](docs/roadmap.md) for the latest numbers. |
-| **Console** | A traffic replayer (`demo/replayer/`, measured: 10,000 interactions in ~100s) plus a read/write API (`console/backend/`) and React dashboard (`console/frontend/`) showing decision breakdown, latency, a recent-requests table, per-request claim/tool-call drill-down, a live risk-appetite slider, and human review (Agree/Disagree). |
+| **Console** | A traffic replayer (`demo/replayer/`, measured: 10,000 interactions in ~100s) plus a read/write API (`console/backend/`) and React dashboard (`console/frontend/` & `showcase/`) showing decision breakdown, latency, a recent-requests table, per-request claim/tool-call drill-down, a live risk-appetite slider, and human review (Agree/Disagree). |
 | **Calibration** | Expected Calibration Error (`bench/metrics/calibration.py`) computed from real (score, outcome) pairs; a live risk-appetite control (`policy/appetite.py`) needs no restart or YAML edit — both measured in [`docs/evaluation.md`](docs/evaluation.md). |
 | **Human review loop** | Reviewers mark decisions Agree/Disagree in the console; once disagreement on `ESCALATE`/`BLOCK` crosses a threshold, `policy/recalibration.py` *suggests* (never auto-applies) a risk-appetite change. |
 | **Injection defense** | `detectors/injection.py` scans untrusted (`role="tool"`/`"function"`) messages for instruction-override phrasing and neutralizes matches before the request reaches the upstream model. A user's own `role="user"` message is never scanned this way. |
+
+## Adaptive Scrutiny Architecture
+
+![Adaptive Scrutiny Configurations](docs/assets/adaptive_scrutiny.png)
+
+Depth is earned, not spent uniformly. A lightweight Tier 0 pre-filter evaluates every payload first. Only when confidence falls below the tenant's scrutiny threshold does the full Tier 1 claim extraction, corpus verification, and PII inspection pipeline engage.
 
 **Known simplifications** — full list in [`docs/assumptions.md`](docs/assumptions.md):
 claim verification is a deterministic heuristic, not a real NLI model · PII
@@ -165,9 +174,10 @@ bench/        400-item labeled synthetic dataset, harness, ECE/calibration
               metrics, results
 demo/         Traffic replayer for populating the console with real ledger data
 console/      Read/write API (backend/) + React dashboard (frontend/)
+showcase/     Next.js 14 WebGL 3D showcase site & integrated console
 docs/         Architecture, terminology, policy breakdown, demo scenarios,
               evaluation numbers, known simplifications
-tests/        145 unit + integration tests, incl. all 9 demo scenes
+tests/        169 unit + integration tests, incl. all 9 demo scenes
               end-to-end
 ```
 
@@ -185,7 +195,9 @@ See those files for field-level docs.
 pytest
 ```
 
-145 tests across `tests/unit/` and `tests/integration/` cover policy
+![Test Suite & Benchmark Execution](docs/assets/test_benchmark_terminal.png)
+
+169 tests across `tests/unit/` and `tests/integration/` cover policy
 loading/validation, the hash-chained audit ledger (incl. tamper detection),
 claim extraction/verification, PII detection, remediation logic, cross-turn
 taint lookup, tool-call gating, the cost breaker, prompt-injection
@@ -211,6 +223,8 @@ isn't reported as a dollar figure in this harness.
 
 ## Console
 
+![Governance Console Overview](docs/assets/governance_console.png)
+
 **1. Populate it with traffic:**
 
 ```bash
@@ -226,13 +240,13 @@ target real Postgres instead).
 ```bash
 # Terminal 1 — read-only API over the audit ledger
 DATABASE_URL="sqlite+aiosqlite:///$(pwd)/demo/replayer/traffic.db" \
-  uvicorn console.backend.main:app --port 8001
+  uvicorn console.backend.main:app --port 8002
 
-# Terminal 2 — dashboard
-cd console/frontend && npm install && npm run dev
+# Terminal 2 — 3D Showcase & Console (Next.js)
+cd showcase && npm install && npm run dev
 ```
 
-Open the printed `http://localhost:5173/` URL. It auto-refreshes every 5
+Open `http://localhost:3000/console` (or `http://localhost:5173/` for the Vite dashboard). It auto-refreshes every 5
 seconds and reads only from the audit ledger — nothing shown is
 hard-coded demo data.
 
