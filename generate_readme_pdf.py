@@ -241,12 +241,24 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t)
-    
-    story.append(PageBreak())
 
-    # PAGE 3: BENCHMARKS & DYNAMIC CALIBRATION
+    # PAGE 3: DEVELOPMENT WORKFLOW & ROADMAP
     # ----------------------------------------------------
-    story.append(Paragraph("3. Empirical Evaluation & Calibration Metrics", h1_style))
+    story.append(PageBreak())
+    story.append(Paragraph("3. Prototype Development Workflow & Milestone History", h1_style))
+    story.append(Paragraph(
+        "The project was executed incrementally across five milestones, ensuring comprehensive testing and architectural validation at every stage:",
+        body_style
+    ))
+    story.append(Paragraph("• <b>Phase 1: Foundations & Architecture:</b> Built the OpenAI-compatible proxy gateway (`/v1/chat/completions`), multi-tenant policy loader (`policy/loader.py`), and PostgreSQL-backed cryptographically hash-chained audit ledger.", bullet_style))
+    story.append(Paragraph("• <b>Phase 2: Claim Scrutiny & Safety Pipelines:</b> Integrated the Tier 0/Tier 1 adaptive scrutiny pipeline, NLP sentence claim extraction, fact-checking against a custom knowledge corpus, and regex PII scanners.", bullet_style))
+    story.append(Paragraph("• <b>Phase 3: Cost Control & Safety Nets:</b> Built per-tenant rate/token volume circuit breakers, cheap-model-first routing with automated escalation, and prompt-injection scanners for untrusted tool outputs.", bullet_style))
+    story.append(Paragraph("• <b>Phase 4: Action Gating & Taint Propagation:</b> Engineered cross-turn taint tracking to lock unverified claims to downstream tool execution parameters, and mapped the action sink catalog (`data/tools.yaml`).", bullet_style))
+    story.append(Paragraph("• <b>Phase 5: UI Management Console & Calibration:</b> Developed the Next.js WebGL 3D showcase landing page, live interactive React console dashboard, ECE computations, and human reviewer agreements recalibration engine.", bullet_style))
+
+    # PAGE 4: BENCHMARKS & DYNAMIC CALIBRATION
+    # ----------------------------------------------------
+    story.append(Paragraph("4. Empirical Evaluation & Calibration Metrics", h1_style))
     story.append(Paragraph(
         "ControlPlane is continuously evaluated using a 400-item synthetic benchmark dataset, measuring precision, "
         "recall, latency overhead, and Expected Calibration Error (ECE) under three distinct configurations:",
@@ -284,11 +296,12 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     ]))
     story.append(t_bench)
     
+    story.append(Spacer(1, 10))
     story.append(PageBreak())
 
-    # PAGE 4: GOVERNANCE CONSOLE
+    # PAGE 5: GOVERNANCE CONSOLE
     # ----------------------------------------------------
-    story.append(Paragraph("4. Human-in-the-Loop & Recalibration", h1_style))
+    story.append(Paragraph("5. Human-in-the-Loop & Recalibration", h1_style))
     story.append(Paragraph(
         "ControlPlane features a live React dashboard where compliance reviewers mark governance decisions as "
         "<b>Agree / Disagree</b>. Disagreement scores feed directly into `policy/recalibration.py`. When disagreements "
@@ -303,9 +316,9 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     
     story.append(PageBreak())
 
-    # PAGE 5: QUICKSTART & INTEGRATION
+    # PAGE 6: QUICKSTART & INTEGRATION
     # ----------------------------------------------------
-    story.append(Paragraph("5. Technical Quickstart & API Integration Guide", h1_style))
+    story.append(Paragraph("6. Technical Quickstart & API Integration Guide", h1_style))
     story.append(Paragraph(
         "Deploy the gateway locally or in a containerized environment, and route model payloads to it directly:",
         body_style
@@ -331,7 +344,7 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     story.append(load_image("docs/assets/test_benchmark_terminal.png", width=460, height=230))
     story.append(Spacer(1, 5))
     
-    story.append(Paragraph("6. Project Team & Reference", h1_style))
+    story.append(Paragraph("7. Project Team & Reference", h1_style))
     story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — mohithg404@gmail.com", bullet_style))
     story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — monalgupta.work@gmail.com", bullet_style))
     story.append(Paragraph("• <b>Veda Vikas</b> (System Architect & Developer) — vedavikas02@gmail.com", bullet_style))

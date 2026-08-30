@@ -80,6 +80,28 @@ For agents, ControlPlane also intercepts consequential tool calls so an unverifi
 
 ---
 
+## Development Workflow & Roadmap
+
+The project was executed incrementally across five milestones, ensuring comprehensive testing and architectural validation at every stage:
+
+* **Phase 1: Foundations & Architecture**
+  * Built the OpenAI-compatible proxy gateway (`/v1/chat/completions`) and multi-tenant policy loader (`policy/loader.py`).
+  * Designed the PostgreSQL-backed cryptographically hash-chained audit ledger to record all transactional state changes.
+* **Phase 2: Claim Scrutiny & Safety Pipelines**
+  * Integrated the Tier 0/Tier 1 adaptive scrutiny pipeline to dynamically route payload claims.
+  * Implemented NLP sentence claim extraction, fact-checking against a custom knowledge corpus, and regex PII scanners.
+* **Phase 3: Cost Control & Safety Nets**
+  * Built per-tenant rate/token volume circuit breakers and cheap-model-first routing with automated escalation on failure.
+  * Added prompt-injection scanners for untrusted tool outputs to neutralize hijack attempts.
+* **Phase 4: Action Gating & Taint Propagation**
+  * Engineered cross-turn taint tracking to lock unverified claims to downstream tool execution parameters.
+  * Added the action sink catalog (`data/tools.yaml`) to block consequential tool calls (e.g. monetary transactions) automatically.
+* **Phase 5: UI Management Console & Dynamic Calibration**
+  * Developed the Next.js WebGL 3D showcase landing page and live interactive console dashboard.
+  * Integrated expected calibration error (ECE) computations and automated recalibration engines driven by live human reviewer agreements.
+
+---
+
 ## Adaptive Scrutiny Architecture
 
 ![Adaptive Scrutiny Configurations](docs/assets/adaptive_scrutiny.png)
