@@ -212,7 +212,7 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
 
     bench_data = [
         [Paragraph("<b>Evaluation Metric</b>", body_style), Paragraph("<b>Measured Result</b>", body_style), Paragraph("<b>Impact & Notes</b>", body_style)],
-        [Paragraph("Automated Test Suite", body_style), Paragraph("<b>145 / 145 Passing</b>", body_style), Paragraph("100% test coverage across unit & integration scenes.", body_style)],
+        [Paragraph("Automated Test Suite", body_style), Paragraph("<b>169 / 169 Passing</b>", body_style), Paragraph("100% test coverage across unit & integration scenes.", body_style)],
         [Paragraph("Synthetic Traffic Replayer", body_style), Paragraph("<b>10,000 requests / 100s</b>", body_style), Paragraph("Demonstrated high-throughput audit ledger logging.", body_style)],
         [Paragraph("Calibration Error (ECE)", body_style), Paragraph("<b>Expected Error &lt; 0.05</b>", body_style), Paragraph("Measured alignment between risk scores and true outputs.", body_style)],
         [Paragraph("Scrutiny Performance", body_style), Paragraph("<b>Adaptive Routing</b>", body_style), Paragraph("Balances latency (Tier 0 cheap gate) and accuracy (Tier 1).", body_style)]
@@ -249,9 +249,14 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     story.append(Paragraph(quickstart_code, code_style))
 
     # Repository Reference
-    story.append(Paragraph("5. Official Repository Reference", h1_style))
+    story.append(Paragraph("5. Official Repository Reference & Project Team", h1_style))
     story.append(Paragraph("<b>Public GitHub Repository:</b> https://github.com/MohithChandra07/Control-Plane-AIC", body_style))
     story.append(Paragraph("<b>Submission Track:</b> Accenture Innovation Challenge 2026 — Prototype Development", body_style))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph("<b>Project Team & Roles:</b>", h2_style))
+    story.append(Paragraph("• <b>Mohith Chandra:</b> Team Lead", bullet_style))
+    story.append(Paragraph("• <b>Monal Gupta:</b> Core NLP & Fullstack Developer", bullet_style))
+    story.append(Paragraph("• <b>Veda Vikas:</b> System Architect & Developer", bullet_style))
 
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"Successfully generated {filename}")

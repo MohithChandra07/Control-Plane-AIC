@@ -219,6 +219,13 @@ def create_proposal_pdf(filename="ControlPlane_Business_Proposal.pdf"):
     story.append(Paragraph("• <b>Q3 2026:</b> Production gateway rollout, Kubernetes Operator release, and automated NIST AI RMF compliance reporting.", bullet_style))
     story.append(Paragraph("• <b>Q4 2026:</b> Integration with Enterprise SSO (Okta/Azure AD), Hardware Security Module (HSM) hash signing, and fine-tuned NLI verification models.", bullet_style))
 
+    # Project Team
+    story.append(Spacer(1, 4))
+    story.append(Paragraph("8. Project Team & Contributors", h1_style))
+    story.append(Paragraph("• <b>Mohith Chandra:</b> Team Lead", bullet_style))
+    story.append(Paragraph("• <b>Monal Gupta:</b> Core NLP & Fullstack Developer", bullet_style))
+    story.append(Paragraph("• <b>Veda Vikas:</b> System Architect & Developer", bullet_style))
+
     doc.build(story, canvasmaker=ProposalNumberedCanvas)
     print(f"Successfully generated {filename}")
 

@@ -196,7 +196,7 @@ def create_presentation(filename="ControlPlane_Business_Proposal.pptx"):
     add_header(s4, "Empirical Validation & Benchmark Results")
 
     stats = [
-        ("145 / 145", "Automated Tests Passing", "100% test suite pass rate covering all integration scenes.", ACCENT_PURPLE),
+        ("169 / 169", "Automated Tests Passing", "100% test suite pass rate covering all integration scenes.", ACCENT_PURPLE),
         ("10,000", "Synthetic Interactions", "Replayed in ~100s, verifying high-throughput audit ledger.", ACCENT_BLUE),
         ("< 0.05", "ECE Calibration Error", "Expected Calibration Error measured on synthetic benchmark.", ACCENT_PURPLE),
         ("3 Policies", "Per-Tenant Multi-Tenancy", "Different outcomes enforced for Support, Copilot, Regulated.", ACCENT_BLUE)
@@ -287,6 +287,45 @@ def create_presentation(filename="ControlPlane_Business_Proposal.pptx"):
         p_b.font.size = Pt(13)
         p_b.font.color.rgb = TEXT_DARK
         p_b.space_before = Pt(12)
+
+    # ==========================================
+    # SLIDE 6: Project Team & Roles
+    # ==========================================
+    s6 = prs.slides.add_slide(blank_slide_layout)
+    add_background(s6, LIGHT_BG)
+    add_header(s6, "Project Team & Contributors")
+
+    team_members = [
+        ("Mohith Chandra", "Team Lead & Core Engineer", "Designed overall architecture, built inline gateway proxy, dynamic risk control interface, and cryptographic ledger.", ACCENT_PURPLE),
+        ("Monal Gupta", "Core NLP & Fullstack Developer", "Implemented claim verification algorithms, PII scanner, React control console, and email notification integrations.", ACCENT_BLUE),
+        ("Veda Vikas", "System Architect & Developer", "Designed database schema, tool-call gating mechanism, policy loading engines, and automated test suite.", ACCENT_PURPLE)
+    ]
+
+    for i, (name, role, responsibilities, color) in enumerate(team_members):
+        x = Inches(0.8 + i * 4.0)
+        add_card(s6, x, Inches(1.8), Inches(3.7), Inches(5.2))
+        tb = s6.shapes.add_textbox(x + Inches(0.2), Inches(2.0), Inches(3.3), Inches(4.8))
+        tf = tb.text_frame
+        tf.word_wrap = True
+
+        p = tf.paragraphs[0]
+        p.text = name
+        p.font.size = Pt(18)
+        p.font.bold = True
+        p.font.color.rgb = color
+
+        p_r = tf.add_paragraph()
+        p_r.text = role
+        p_r.font.size = Pt(13)
+        p_r.font.bold = True
+        p_r.font.color.rgb = TEXT_DARK
+        p_r.space_before = Pt(8)
+
+        p_desc = tf.add_paragraph()
+        p_desc.text = responsibilities
+        p_desc.font.size = Pt(11)
+        p_desc.font.color.rgb = MUTED_TEXT
+        p_desc.space_before = Pt(12)
 
     # Save Presentation
     prs.save(filename)

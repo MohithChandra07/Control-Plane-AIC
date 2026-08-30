@@ -306,3 +306,11 @@ live value.
 | [`docs/demo-scenarios.md`](docs/demo-scenarios.md) | All 9 demo scenes with exact reproduce commands and the test proving each |
 | [`docs/assumptions.md`](docs/assumptions.md) | Full list of known simplifications |
 | [`docs/project-brief.md`](docs/project-brief.md) | Original project brief |
+
+## Team & Contributors
+
+This prototype was developed for the Accenture Innovation Challenge 2026 by:
+* **Mohith Chandra** — Team Lead
+* **Monal Gupta** — Core NLP & Fullstack Developer
+* **Veda Vikas** — System Architect & Developer
+
