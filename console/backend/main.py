@@ -183,17 +183,19 @@ def _demo_request_emails(body: DemoRequestSubmission, submitted_at: str) -> tupl
     )
 
     confirmation_html = f"""\
-<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#0b0f18">
+<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0b0f18;line-height:1.6">
   <p>Hi {safe["name"]},</p>
-  <p>Thanks for your interest in ControlPlane.</p>
-  <p>We&rsquo;ve received your demo request and will reach out to you at the earliest.</p>
-  <p>Best,<br/>ControlPlane Team</p>
+  <p>Thank you for your interest in ControlPlane.</p>
+  <p>We’ve received your demo request and appreciate your interest in exploring our platform. Our team will review your request and get in touch with you shortly to discuss the next steps and schedule a convenient time for the demo.</p>
+  <p>Looking forward to connecting with you.</p>
+  <p>Best regards,<br/><strong>ControlPlane Team</strong></p>
 </div>"""
     confirmation_text = (
         f"Hi {body.name},\n\n"
-        "Thanks for your interest in ControlPlane.\n\n"
-        "We've received your demo request and will reach out to you at the earliest.\n\n"
-        "Best,\nControlPlane Team\n"
+        "Thank you for your interest in ControlPlane.\n\n"
+        "We’ve received your demo request and appreciate your interest in exploring our platform. Our team will review your request and get in touch with you shortly to discuss the next steps and schedule a convenient time for the demo.\n\n"
+        "Looking forward to connecting with you.\n\n"
+        "Best regards,\nControlPlane Team\n"
     )
 
     return notification_html, notification_text, confirmation_html, confirmation_text
