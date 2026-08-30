@@ -98,29 +98,61 @@ class DemoRequestSubmission(BaseModel):
         return value
 
 
+import asyncio
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 RESEND_API_URL = "https://api.resend.com/emails"
 
 
-async def _send_resend_email(*, to: str, subject: str, html_body: str, text_body: str) -> None:
-    """POSTs one email through Resend's REST API. Raises RuntimeError with a
-    server-side-only detail message on any failure -- the API key lives only
-    in this process's environment, never in a response body or the
-    frontend, per the no-secrets-in-client-code requirement this exists to
-    satisfy."""
-    api_key = os.environ.get("RESEND_API_KEY")
-    if not api_key:
-        print(f"[demo-request:dev] Mock email to {to}: {subject}")
-        return
-    from_address = os.environ.get("EMAIL_FROM", "onboarding@resend.com")
+async def _send_resend_email(*, to: str, subject: str, html_body: str, text_body: str, reply_to: str | None = None) -> None:
+    """Sends email via direct SMTP (e.g. Gmail App Password) if configured,
+    or via Resend API. Falls back to mock logging in dev."""
+    smtp_user = os.environ.get("SMTP_USER")
+    smtp_password = os.environ.get("SMTP_PASSWORD")
+    if smtp_user and smtp_password:
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(
-            RESEND_API_URL,
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={"from": from_address, "to": [to], "subject": subject, "html": html_body, "text": text_body},
-        )
-    if response.status_code >= 400:
-        raise RuntimeError(f"Resend API returned {response.status_code}: {response.text}")
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"ControlPlane <{smtp_user}>"
+        msg["To"] = to
+        if reply_to:
+            msg["Reply-To"] = reply_to
+        msg.attach(MIMEText(text_body, "plain"))
+        msg.attach(MIMEText(html_body, "html"))
+
+        def _sync_send():
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+
+        await asyncio.to_thread(_sync_send)
+        print(f"[demo-request] Sent real email via SMTP to {to}")
+        return
+
+    api_key = os.environ.get("RESEND_API_KEY")
+    if api_key:
+        from_address = os.environ.get("EMAIL_FROM", "onboarding@resend.com")
+        payload = {"from": from_address, "to": [to], "subject": subject, "html": html_body, "text": text_body}
+        if reply_to:
+            payload["reply_to"] = reply_to
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                RESEND_API_URL,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(f"Resend API returned {response.status_code}: {response.text}")
+        print(f"[demo-request] Sent email via Resend to {to}")
+        return
+
+    print(f"[demo-request:dev] Mock email to {to}: {subject}")
 
 
 def _demo_request_emails(body: DemoRequestSubmission, submitted_at: str) -> tuple[str, str, str, str]:
@@ -205,6 +237,7 @@ def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
                 subject=f"New ControlPlane Demo Request — {body.company}",
                 html_body=notification_html,
                 text_body=notification_text,
+                reply_to=body.work_email,
             )
         except (RuntimeError, httpx.HTTPError) as exc:
             exc_str = str(exc)
@@ -239,6 +272,7 @@ def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
                 subject="Your ControlPlane demo request",
                 html_body=confirmation_html,
                 text_body=confirmation_text,
+                reply_to=notify_to,
             )
         except Exception as exc:
             pass

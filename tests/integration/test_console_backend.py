@@ -228,7 +228,7 @@ def test_demo_request_sends_notification_and_confirmation_on_success(tmp_path, m
     monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
     sent = []
 
-    async def fake_send(*, to, subject, html_body, text_body):
+    async def fake_send(*, to, subject, html_body, text_body, **kwargs):
         sent.append({"to": to, "subject": subject})
 
     monkeypatch.setattr(backend_main, "_send_resend_email", fake_send)
@@ -249,7 +249,7 @@ def test_demo_request_fails_when_notification_email_fails(tmp_path, monkeypatch)
 
     monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
 
-    async def failing_send(*, to, subject, html_body, text_body):
+    async def failing_send(*, to, subject, html_body, text_body, **kwargs):
         raise RuntimeError("Resend API returned 401: unauthorized")
 
     monkeypatch.setattr(backend_main, "_send_resend_email", failing_send)
@@ -270,7 +270,7 @@ def test_demo_request_succeeds_even_if_visitor_confirmation_fails(tmp_path, monk
     monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
     calls = []
 
-    async def mixed_send(*, to, subject, html_body, text_body):
+    async def mixed_send(*, to, subject, html_body, text_body, **kwargs):
         calls.append(to)
         if to != "sales@example.com":
             raise RuntimeError("Resend API returned 422: invalid recipient")
