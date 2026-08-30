@@ -3,7 +3,7 @@ import sys
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable, Image
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -138,9 +138,17 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         spaceAfter=8
     )
 
+    # Image loading helper to prevent execution crashes
+    def load_image(path, width=440, height=220):
+        if os.path.exists(path):
+            img = Image(path, width=width, height=height)
+            img.hAlign = 'CENTER'
+            return img
+        return Paragraph(f"<i>[Screenshot Asset Missing: {path}]</i>", body_style)
+
     story = []
     
-    # COVER PAGE BLOCK
+    # COVER PAGE BLOCK (Page 1)
     # ----------------------------------------------------
     story.append(Spacer(1, 20))
     story.append(Paragraph("ControlPlane.ai", title_style))
@@ -166,7 +174,7 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         ('RIGHTPADDING', (0,0), (-1,-1), 12),
     ]))
     story.append(intro_table)
-    story.append(Spacer(1, 15))
+    story.append(Spacer(1, 20))
 
     # Meta Info block
     meta_data = [
@@ -203,6 +211,10 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         "Application Client → ControlPlane Gateway → Upstream AI Model → Response Analysis → Policy Engine → [ALLOW / MODIFY / ESCALATE / BLOCK] → Application Client"
     )
     story.append(Paragraph(arch_flow, code_style))
+    
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("<b>ControlPlane 3D WebGL Interface & Showcase</b>", h2_style))
+    story.append(load_image("docs/assets/hero_3d_showcase.png", width=460, height=230))
     
     story.append(Spacer(1, 5))
     story.append(Paragraph("2. Technical Implementation Matrix", h1_style))
@@ -246,6 +258,10 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     story.append(Paragraph("• <b>ADAPTIVE (Dynamic Routing):</b> Routes dynamically based on confidence thresholds, maintaining 99.4% recall while saving 30.5% in execution overhead.", bullet_style))
     
     story.append(Spacer(1, 5))
+    story.append(Paragraph("<b>Adaptive Scrutiny Evaluation Metrics</b>", h2_style))
+    story.append(load_image("docs/assets/adaptive_scrutiny.png", width=460, height=230))
+    story.append(Spacer(1, 5))
+    
     story.append(Paragraph("Key Verification Statistics", h2_style))
 
     bench_data = [
@@ -268,7 +284,10 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     ]))
     story.append(t_bench)
     
-    story.append(Spacer(1, 10))
+    story.append(PageBreak())
+
+    # PAGE 4: GOVERNANCE CONSOLE
+    # ----------------------------------------------------
     story.append(Paragraph("4. Human-in-the-Loop & Recalibration", h1_style))
     story.append(Paragraph(
         "ControlPlane features a live React dashboard where compliance reviewers mark governance decisions as "
@@ -277,9 +296,14 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
         body_style
     ))
     
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("<b>ControlPlane Real-Time Operational Overview Console</b>", h2_style))
+    story.append(load_image("docs/assets/governance_console.png", width=460, height=230))
+    story.append(Spacer(1, 10))
+    
     story.append(PageBreak())
 
-    # PAGE 4: QUICKSTART & INTEGRATION
+    # PAGE 5: QUICKSTART & INTEGRATION
     # ----------------------------------------------------
     story.append(Paragraph("5. Technical Quickstart & API Integration Guide", h1_style))
     story.append(Paragraph(
@@ -303,31 +327,10 @@ def create_readme_pdf(filename="ControlPlane_README_Document.pdf"):
     story.append(Paragraph(quickstart_code, code_style))
 
     story.append(Spacer(1, 5))
-    story.append(Paragraph("Sample Intercepted JSON Response", h2_style))
-    story.append(Paragraph(
-        "The gateway returns a standard OpenAI ChatCompletion payload containing a nested `controlplane` block "
-        "representing the full audit trail and verification verdict:",
-        body_style
-    ))
-    
-    json_payload = (
-        "{<br/>"
-        "  \"id\": \"chatcmpl-123\",<br/>"
-        "  \"choices\": [{ \"message\": { \"role\": \"assistant\", \"content\": \"...\" } }],<br/>"
-        "  \"controlplane\": {<br/>"
-        "    \"request_id\": \"req-abc\",<br/>"
-        "    \"tenant_id\": \"customer_support\",<br/>"
-        "    \"decision\": \"MODIFY\",<br/>"
-        "    \"tier\": 1,<br/>"
-        "    \"claims\": [<br/>"
-        "      { \"claim_id\": \"claim-1\", \"text\": \"Refund processed...\", \"verdict\": \"SUPPORTED\" }<br/>"
-        "    ]<br/>"
-        "  }<br/>"
-        "}"
-    )
-    story.append(Paragraph(json_payload, code_style))
-    
+    story.append(Paragraph("<b>Terminal Execution Output (Passing Test Suite)</b>", h2_style))
+    story.append(load_image("docs/assets/test_benchmark_terminal.png", width=460, height=230))
     story.append(Spacer(1, 5))
+    
     story.append(Paragraph("6. Project Team & Reference", h1_style))
     story.append(Paragraph("• <b>Mohith Chandra</b> (Team Lead & Core Engineer) — mohithg404@gmail.com", bullet_style))
     story.append(Paragraph("• <b>Monal Gupta</b> (Core NLP & Fullstack Developer) — monalgupta.work@gmail.com", bullet_style))
