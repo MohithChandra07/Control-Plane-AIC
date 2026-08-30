@@ -28,6 +28,7 @@ rather than inferred from which fields are set.
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 import uuid
@@ -208,14 +209,29 @@ def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
         except (RuntimeError, httpx.HTTPError) as exc:
             exc_str = str(exc)
             if "not verified" in exc_str or "403" in exc_str:
-                # In Resend sandbox mode without a verified custom domain,
-                # capture and log the lead cleanly rather than failing the client.
-                print(f"[demo-request] Captured lead: {body.name} ({body.work_email}) - {body.company}")
+                pass
             else:
                 print(f"[demo-request] notification email failed: {exc}")
                 raise HTTPException(
                     status_code=502, detail="Could not submit your request right now. Please try again shortly."
                 ) from exc
+
+        # Persist lead locally so you can view all submissions in data/demo_leads.json
+        try:
+            leads_file = os.path.join(os.path.dirname(__file__), "..", "..", "data", "demo_leads.json")
+            leads_data = []
+            if os.path.exists(leads_file):
+                with open(leads_file, "r") as f:
+                    try:
+                        leads_data = json.load(f)
+                    except Exception:
+                        leads_data = []
+            leads_data.append({**body.model_dump(), "submitted_at": submitted_at})
+            with open(leads_file, "w") as f:
+                json.dump(leads_data, f, indent=2)
+            print(f"[demo-request] Saved lead to data/demo_leads.json: {body.name} ({body.work_email}) - {body.company}")
+        except Exception as e:
+            print(f"[demo-request] Error saving lead to file: {e}")
 
         try:
             await _send_resend_email(
