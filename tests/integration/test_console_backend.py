@@ -161,9 +161,127 @@ def test_setting_risk_appetite_persists_and_is_audited(tmp_path):
     assert verify_chain(events) is True
 
 
+def test_policies_endpoint_reflects_configs_yaml(tmp_path):
+    db_path = tmp_path / "audit.db"
+    _seed_gateway_traffic(db_path)
+    with _console_client(db_path) as client:
+        response = client.get("/api/policies")
+    assert response.status_code == 200
+    by_tenant = {p["tenant_id"]: p for p in response.json()}
+    assert "regulated_agent" in by_tenant
+    regulated = by_tenant["regulated_agent"]
+    assert regulated["unverifiable_handling"] == "ESCALATE"
+    assert regulated["tool_calls"]["consequential_sinks"] == [
+        "money_movement",
+        "database_write",
+        "external_communication",
+    ]
+
+
 def test_risk_appetite_rejects_out_of_range_value(tmp_path):
     db_path = tmp_path / "audit.db"
     _seed_gateway_traffic(db_path)
     with _console_client(db_path) as client:
         response = client.put("/api/risk-appetite/customer_support", json={"risk_appetite": 1.5})
     assert response.status_code == 422
+
+
+_DEMO_REQUEST_BODY = {
+    "name": "Ada Lovelace",
+    "work_email": "ada@example.com",
+    "company": "Analytical Engines Inc",
+    "role": "Head of AI",
+    "ai_use_case": "Customer support automation",
+    "primary_concern": "Governance",
+}
+
+
+def test_demo_request_rejects_missing_required_field(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json={**_DEMO_REQUEST_BODY, "company": ""})
+    assert response.status_code == 422
+
+
+def test_demo_request_rejects_invalid_email(tmp_path, monkeypatch):
+    monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json={**_DEMO_REQUEST_BODY, "work_email": "not-an-email"})
+    assert response.status_code == 422
+
+
+def test_demo_request_503_when_notification_email_unconfigured(tmp_path, monkeypatch):
+    monkeypatch.delenv("DEMO_NOTIFICATION_EMAIL", raising=False)
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json=_DEMO_REQUEST_BODY)
+    assert response.status_code == 503
+
+
+def test_demo_request_sends_notification_and_confirmation_on_success(tmp_path, monkeypatch):
+    import console.backend.main as backend_main
+
+    monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
+    sent = []
+
+    async def fake_send(*, to, subject, html_body, text_body):
+        sent.append({"to": to, "subject": subject})
+
+    monkeypatch.setattr(backend_main, "_send_resend_email", fake_send)
+
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json=_DEMO_REQUEST_BODY)
+
+    assert response.status_code == 201
+    assert response.json() == {"status": "received"}
+    assert [s["to"] for s in sent] == ["sales@example.com", "ada@example.com"]
+    assert sent[0]["subject"] == "New ControlPlane Demo Request — Analytical Engines Inc"
+    assert sent[1]["subject"] == "Your ControlPlane demo request"
+
+
+def test_demo_request_fails_when_notification_email_fails(tmp_path, monkeypatch):
+    import console.backend.main as backend_main
+
+    monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
+
+    async def failing_send(*, to, subject, html_body, text_body):
+        raise RuntimeError("Resend API returned 401: unauthorized")
+
+    monkeypatch.setattr(backend_main, "_send_resend_email", failing_send)
+
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json=_DEMO_REQUEST_BODY)
+
+    assert response.status_code == 502
+    # The real Resend error must never reach the client.
+    assert "Resend" not in response.text
+    assert "unauthorized" not in response.text
+
+
+def test_demo_request_succeeds_even_if_visitor_confirmation_fails(tmp_path, monkeypatch):
+    import console.backend.main as backend_main
+
+    monkeypatch.setenv("DEMO_NOTIFICATION_EMAIL", "sales@example.com")
+    calls = []
+
+    async def mixed_send(*, to, subject, html_body, text_body):
+        calls.append(to)
+        if to != "sales@example.com":
+            raise RuntimeError("Resend API returned 422: invalid recipient")
+
+    monkeypatch.setattr(backend_main, "_send_resend_email", mixed_send)
+
+    db_path = tmp_path / "audit.db"
+    with _console_client(db_path) as client:
+        response = client.post("/api/demo-request", json=_DEMO_REQUEST_BODY)
+
+    # The lead is captured (notification succeeded) even though the
+    # best-effort visitor confirmation failed.
+    assert response.status_code == 201
+    assert calls == ["sales@example.com", "ada@example.com"]

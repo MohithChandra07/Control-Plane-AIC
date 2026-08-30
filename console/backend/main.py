@@ -27,13 +27,17 @@ rather than inferred from which fields are set.
 
 from __future__ import annotations
 
+import html
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -41,6 +45,7 @@ from bench.metrics.metrics import percentile
 from ledger.audit import AuditLedger, AuditRecord
 from ledger.db import get_engine, get_sessionmaker
 from ledger.models import AuditEvent, TenantSetting
+from policy.loader import load_all_policies
 from policy.recalibration import suggest_recalibration
 
 
@@ -57,6 +62,109 @@ class ReviewSubmission(BaseModel):
     notes: str | None = None
 
 
+# Deliberately not pydantic's EmailStr: that requires adding the
+# email-validator package as a new project dependency for one field.
+# "Sensible" validation, not full RFC 5322 -- same bar the browser's own
+# <input type="email"> applies before this ever gets sent.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class DemoRequestSubmission(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    work_email: str = Field(min_length=1, max_length=320)
+    company: str = Field(min_length=1, max_length=200)
+    role: str = Field(default="", max_length=200)
+    ai_use_case: str = Field(default="", max_length=2000)
+    primary_concern: str = Field(min_length=1, max_length=100)
+
+    @field_validator("name", "work_email", "company", "role", "ai_use_case", "primary_concern")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("name", "company", "primary_concern")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+    @field_validator("work_email")
+    @classmethod
+    def _valid_email(cls, value: str) -> str:
+        if not _EMAIL_RE.match(value):
+            raise ValueError("not a valid email address")
+        return value
+
+
+RESEND_API_URL = "https://api.resend.com/emails"
+
+
+async def _send_resend_email(*, to: str, subject: str, html_body: str, text_body: str) -> None:
+    """POSTs one email through Resend's REST API. Raises RuntimeError with a
+    server-side-only detail message on any failure -- the API key lives only
+    in this process's environment, never in a response body or the
+    frontend, per the no-secrets-in-client-code requirement this exists to
+    satisfy."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise RuntimeError("RESEND_API_KEY is not configured")
+    from_address = os.environ.get("EMAIL_FROM", "ControlPlane <onboarding@resend.com>")
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"from": from_address, "to": [to], "subject": subject, "html": html_body, "text": text_body},
+        )
+    if response.status_code >= 400:
+        raise RuntimeError(f"Resend API returned {response.status_code}: {response.text}")
+
+
+def _demo_request_emails(body: DemoRequestSubmission, submitted_at: str) -> tuple[str, str, str, str]:
+    """Builds (notification_html, notification_text, confirmation_html,
+    confirmation_text). Kept separate from the sending call so the content
+    itself is easy to read and test independent of the Resend HTTP call."""
+    safe = {k: html.escape(v) for k, v in body.model_dump().items()}
+
+    notification_html = f"""\
+<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0b0f18">
+  <p style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#579af0;font-weight:600">New sales / demo lead</p>
+  <h2 style="margin:8px 0 20px;font-size:20px">New ControlPlane Demo Request &mdash; {safe["company"]}</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    <tr><td style="padding:8px 0;color:#6b7280;width:140px">Name</td><td style="padding:8px 0"><strong>{safe["name"]}</strong></td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Work email</td><td style="padding:8px 0"><a href="mailto:{safe["work_email"]}">{safe["work_email"]}</a></td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Company</td><td style="padding:8px 0">{safe["company"]}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Role</td><td style="padding:8px 0">{safe["role"] or "&mdash;"}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;vertical-align:top">AI use case</td><td style="padding:8px 0">{safe["ai_use_case"] or "&mdash;"}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Primary concern</td><td style="padding:8px 0">{safe["primary_concern"]}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280">Submitted</td><td style="padding:8px 0">{submitted_at}</td></tr>
+  </table>
+</div>"""
+    notification_text = (
+        f"New ControlPlane Demo Request — {body.company}\n\n"
+        f"Name: {body.name}\nWork email: {body.work_email}\nCompany: {body.company}\n"
+        f"Role: {body.role or '—'}\nAI use case: {body.ai_use_case or '—'}\n"
+        f"Primary concern: {body.primary_concern}\nSubmitted: {submitted_at}\n"
+    )
+
+    confirmation_html = f"""\
+<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#0b0f18">
+  <p>Hi {safe["name"]},</p>
+  <p>Thanks for your interest in ControlPlane.</p>
+  <p>We&rsquo;ve received your demo request and will reach out to you at the earliest.</p>
+  <p>Best,<br/>ControlPlane Team</p>
+</div>"""
+    confirmation_text = (
+        f"Hi {body.name},\n\n"
+        "Thanks for your interest in ControlPlane.\n\n"
+        "We've received your demo request and will reach out to you at the earliest.\n\n"
+        "Best,\nControlPlane Team\n"
+    )
+
+    return notification_html, notification_text, confirmation_html, confirmation_text
+
+
 def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -68,10 +176,91 @@ def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
     app = FastAPI(title="ControlPlane Console API", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.environ.get("CONSOLE_CORS_ORIGINS", "http://localhost:5173").split(","),
+        allow_origins=os.environ.get(
+            "CONSOLE_CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+        ).split(","),
         allow_methods=["GET", "PUT", "POST"],
         allow_headers=["*"],
     )
+
+    @app.post("/api/demo-request", status_code=201)
+    async def submit_demo_request(body: DemoRequestSubmission):
+        """Showcase lead capture (the "Request a Demo" form) -- sends a
+        notification email to the sales inbox and a confirmation email to
+        the visitor, via Resend. Deliberately not routed through
+        AuditLedger: CLAUDE.md rule #5 is about not having a second,
+        unaudited way to make a *governance* decision, and a marketing
+        lead isn't one -- writing it into audit_events would misuse that
+        table's meaning rather than protect it.
+
+        The notification email is the actual lead capture, so its failure
+        fails the request. The visitor confirmation is best-effort: if it
+        fails after the notification already succeeded, the lead is still
+        captured, so that's logged rather than turned into a client-facing
+        failure that would contradict the success response already implied.
+        """
+        notify_to = os.environ.get("DEMO_NOTIFICATION_EMAIL")
+        if not notify_to:
+            raise HTTPException(status_code=503, detail="Demo request intake is not configured")
+
+        submitted_at = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+        notification_html, notification_text, confirmation_html, confirmation_text = _demo_request_emails(
+            body, submitted_at
+        )
+
+        try:
+            await _send_resend_email(
+                to=notify_to,
+                subject=f"New ControlPlane Demo Request — {body.company}",
+                html_body=notification_html,
+                text_body=notification_text,
+            )
+        except (RuntimeError, httpx.HTTPError) as exc:
+            # Never forward Resend's own error text to the client -- it can
+            # carry account/config details that have no business leaving
+            # this process.
+            print(f"[demo-request] notification email failed: {exc}")
+            raise HTTPException(
+                status_code=502, detail="Could not submit your request right now. Please try again shortly."
+            ) from exc
+
+        try:
+            await _send_resend_email(
+                to=body.work_email,
+                subject="Your ControlPlane demo request",
+                html_body=confirmation_html,
+                text_body=confirmation_text,
+            )
+        except (RuntimeError, httpx.HTTPError) as exc:
+            print(f"[demo-request] confirmation email to visitor failed: {exc}")
+
+        return {"status": "received"}
+
+    @app.get("/api/policies")
+    async def policies():
+        """Tenant policy profiles as loaded from configs/*.yaml (policy/loader.py) --
+        read-only, and the same Policy schema the gateway itself enforces. Added for
+        the showcase's Policy Engine view (spec §16): the YAML/backend policy system
+        stays authoritative, this just exposes it rather than re-describing it in
+        the frontend."""
+        loaded = load_all_policies()
+        return [
+            {
+                "tenant_id": policy.tenant_id,
+                "display_name": policy.display_name,
+                "description": policy.description.strip(),
+                "latency_budget_ms": policy.latency_budget_ms,
+                "unverifiable_handling": policy.unverifiable_handling.value,
+                "risk_thresholds": policy.risk_thresholds.model_dump(),
+                "pii": policy.pii.model_dump(),
+                "tool_calls": policy.tool_calls.model_dump(),
+                "escalation": policy.escalation.model_dump(),
+                "cost_breaker": policy.cost_breaker.model_dump(),
+                "model_routing": policy.model_routing.model_dump(),
+                "fail_mode": policy.fail_mode.value,
+            }
+            for policy in loaded.values()
+        ]
 
     @app.get("/api/tenants")
     async def tenants():
