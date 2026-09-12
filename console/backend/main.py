@@ -209,15 +209,25 @@ def create_app(*, engine: AsyncEngine | None = None) -> FastAPI:
         yield
         await app.state.engine.dispose()
 
+    cors_origins_raw = os.environ.get("CONSOLE_CORS_ORIGINS", "*")
+    if cors_origins_raw.strip() == "*":
+        cors_origins = ["*"]
+    else:
+        cors_origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()]
+
     app = FastAPI(title="ControlPlane Console API", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.environ.get(
-            "CONSOLE_CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
-        ).split(","),
-        allow_methods=["GET", "PUT", "POST"],
+        allow_origins=cors_origins,
+        allow_credentials=True if cors_origins != ["*"] else False,
+        allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/healthz")
+    @app.get("/")
+    async def health():
+        return {"status": "ok", "service": "controlplane-console"}
 
     @app.post("/api/demo-request", status_code=201)
     async def submit_demo_request(body: DemoRequestSubmission):

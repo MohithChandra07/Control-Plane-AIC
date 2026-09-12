@@ -35,6 +35,16 @@ def get_database_url() -> str:
         rel_path = url[len("sqlite+aiosqlite:///") :]
         abs_path = (_ROOT / rel_path).resolve()
         return f"sqlite+aiosqlite:///{abs_path}"
+    if url.startswith("postgres://"):
+        url = "postgresql+asyncpg://" + url[len("postgres://") :]
+    elif url.startswith("postgresql://") and not url.startswith("postgresql+"):
+        url = "postgresql+asyncpg://" + url[len("postgresql://") :]
+    if "sslmode=" in url:
+        url = (
+            url.replace("sslmode=require", "ssl=require")
+            .replace("sslmode=prefer", "ssl=prefer")
+            .replace("sslmode=disable", "ssl=disable")
+        )
     return url
 
 

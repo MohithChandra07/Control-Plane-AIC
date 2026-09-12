@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from detectors.hallucination.claim_verifier import ClaimVerifier
@@ -77,11 +78,18 @@ def create_app(
         await app.state.engine.dispose()
 
     app = FastAPI(title="ControlPlane Gateway", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(chat_router)
 
+    @app.get("/")
     @app.get("/healthz")
     async def healthz():
-        return {"status": "ok", "tenants": sorted(app.state.policies.keys())}
+        return {"status": "ok", "service": "controlplane-gateway", "tenants": sorted(app.state.policies.keys())}
 
     return app
 

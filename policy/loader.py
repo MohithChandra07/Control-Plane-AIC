@@ -7,6 +7,7 @@ loader rather than constructing Policy() or reading YAML directly, so that
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml
@@ -14,7 +15,18 @@ from pydantic import ValidationError
 
 from policy.models import Policy
 
-CONFIGS_DIR = Path(__file__).resolve().parent.parent / "configs"
+
+def _default_configs_dir() -> Path:
+    env_path = os.environ.get("CONFIGS_DIR")
+    if env_path:
+        return Path(env_path)
+    cwd_path = Path.cwd() / "configs"
+    if cwd_path.exists():
+        return cwd_path
+    return Path(__file__).resolve().parent.parent / "configs"
+
+
+CONFIGS_DIR = _default_configs_dir()
 
 
 class PolicyLoadError(RuntimeError):

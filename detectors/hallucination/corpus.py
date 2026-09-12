@@ -15,10 +15,22 @@ the *heading* "Customer Records Contact" instead of no passage at all.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
-CORPUS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "corpus"
+
+def _default_corpus_dir() -> Path:
+    env_path = os.environ.get("CORPUS_DIR")
+    if env_path:
+        return Path(env_path)
+    cwd_path = Path.cwd() / "data" / "corpus"
+    if cwd_path.exists():
+        return cwd_path
+    return Path(__file__).resolve().parent.parent.parent / "data" / "corpus"
+
+
+CORPUS_DIR = _default_corpus_dir()
 
 
 @dataclass

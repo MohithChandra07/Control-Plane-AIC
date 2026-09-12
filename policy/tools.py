@@ -9,14 +9,24 @@ policy.models.ToolCallPolicy instead, per "policy lives in configs/, not
 scattered in source" (CLAUDE.md rule #4).
 """
 
-from __future__ import annotations
-
+import os
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel, Field
 
-TOOLS_CONFIG = Path(__file__).resolve().parent.parent / "data" / "tools.yaml"
+
+def _default_tools_config() -> Path:
+    env_path = os.environ.get("TOOLS_CONFIG")
+    if env_path:
+        return Path(env_path)
+    cwd_path = Path.cwd() / "data" / "tools.yaml"
+    if cwd_path.exists():
+        return cwd_path
+    return Path(__file__).resolve().parent.parent / "data" / "tools.yaml"
+
+
+TOOLS_CONFIG = _default_tools_config()
 
 
 class ToolSpec(BaseModel):

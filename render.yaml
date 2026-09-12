@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: controlplane-console
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: uvicorn console.backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: controlplane-db
+          property: connectionString
+      - key: CONSOLE_CORS_ORIGINS
+        value: "*"
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  - type: web
+    name: controlplane-gateway
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: uvicorn gateway.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: controlplane-db
+          property: connectionString
+      - key: UPSTREAM_BASE_URL
+        value: https://api.openai.com/v1
+      - key: UPSTREAM_API_KEY
+        sync: false
+      - key: UPSTREAM_DEFAULT_MODEL
+        value: gpt-4o-mini
+      - key: DEFAULT_TENANT
+        value: customer_support
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+databases:
+  - name: controlplane-db
+    databaseName: controlplane
+    user: controlplane
+    plan: free

@@ -15,4 +15,5 @@ build/
 .turbo/
 *.tsbuildinfo
 .DS_Store
+data/demo_leads.json
 
