@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import JSON, Float, String, Text
+from sqlalchemy import JSON, DateTime, Float, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -29,7 +29,7 @@ class AuditEvent(Base):
 
     request_id: Mapped[str] = mapped_column(String(64), index=True)
     created_at: Mapped[dt.datetime] = mapped_column(
-        default=lambda: dt.datetime.now(dt.UTC)
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.UTC)
     )
     # Discriminates the three kinds of row one request can produce:
     # "request" (one per call, always), "claim" (one per extracted
@@ -85,6 +85,6 @@ class TenantSetting(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     risk_appetite: Mapped[float] = mapped_column(Float, default=0.5)
     updated_at: Mapped[dt.datetime] = mapped_column(
-        default=lambda: dt.datetime.now(dt.UTC), onupdate=lambda: dt.datetime.now(dt.UTC)
+        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.UTC), onupdate=lambda: dt.datetime.now(dt.UTC)
     )
     updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
