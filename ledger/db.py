@@ -27,8 +27,7 @@ _DEFAULT_SQLITE_PATH = _ROOT / "demo" / "replayer" / "traffic.db"
 DEFAULT_DATABASE_URL = f"sqlite+aiosqlite:///{_DEFAULT_SQLITE_PATH}"
 
 
-def get_database_url() -> str:
-    url = os.environ.get("DATABASE_URL")
+def normalize_database_url(url: str | None) -> str:
     if not url:
         return DEFAULT_DATABASE_URL
     if url.startswith("sqlite+aiosqlite:///") and not url.startswith("sqlite+aiosqlite:////"):
@@ -48,8 +47,16 @@ def get_database_url() -> str:
     return url
 
 
+def get_database_url() -> str:
+    return normalize_database_url(os.environ.get("DATABASE_URL"))
+
+
 def get_engine(database_url: str | None = None) -> AsyncEngine:
-    return create_async_engine(database_url or get_database_url(), pool_pre_ping=True)
+    norm_url = normalize_database_url(database_url or get_database_url())
+    connect_args = {}
+    if "asyncpg" in norm_url and "localhost" not in norm_url and "127.0.0.1" not in norm_url:
+        connect_args["ssl"] = "require"
+    return create_async_engine(norm_url, pool_pre_ping=True, connect_args=connect_args)
 
 
 def get_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

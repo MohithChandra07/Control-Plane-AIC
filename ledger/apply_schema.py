@@ -7,26 +7,31 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import text
+import asyncpg
 
-from ledger.db import get_database_url, get_engine
+from ledger.db import normalize_database_url
 
 
 async def apply_schema(url: str | None = None) -> None:
-    db_url = url or get_database_url()
-    print(f"Connecting to database: {db_url.split('@')[-1] if '@' in db_url else 'local'}...")
-    engine = get_engine(db_url)
+    raw_url = url or os.environ.get("DATABASE_URL", "")
+    if not raw_url:
+        raise RuntimeError("No database URL provided.")
+
+    # Format URL for asyncpg: postgresql://...
+    norm_url = normalize_database_url(raw_url)
+    if norm_url.startswith("postgresql+asyncpg://"):
+        norm_url = "postgresql://" + norm_url[len("postgresql+asyncpg://") :]
+
+    print(f"Connecting to database: {norm_url.split('@')[-1] if '@' in norm_url else 'local'}...")
     schema_file = Path(__file__).resolve().parent / "schema.sql"
     sql = schema_file.read_text()
 
-    async with engine.begin() as conn:
-        for stmt in sql.split(";"):
-            cleaned = stmt.strip()
-            if cleaned:
-                await conn.execute(text(cleaned))
-
-    await engine.dispose()
-    print("ledger/schema.sql successfully applied.")
+    conn = await asyncpg.connect(norm_url, ssl="require" if "localhost" not in norm_url and "127.0.0.1" not in norm_url else None)
+    try:
+        await conn.execute(sql)
+        print("ledger/schema.sql successfully applied.")
+    finally:
+        await conn.close()
 
 
 if __name__ == "__main__":
